@@ -1,0 +1,55 @@
+version: 2
+project_name: baton-azure-devops
+builds:
+  - binary: baton-azure-devops
+    env:
+      - CGO_ENABLED=0
+    id: linux
+    main: ./cmd/baton-azure-devops
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+dockers:
+  - use: buildx
+    goos: linux
+    goarch: amd64
+    image_templates:
+      - "ghcr.io/conductorone/baton-azure-devops:{{ .Version }}-amd64"
+      - "ghcr.io/conductorone/baton-azure-devops:latest-amd64"
+    build_flag_templates:
+      - "--platform=linux/amd64"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title=baton-azure-devops"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+      - "--label=org.opencontainers.image.source=https://github.com/conductorone/baton-azure-devops"
+  - use: buildx
+    goos: linux
+    goarch: arm64
+    image_templates:
+      - "ghcr.io/conductorone/baton-azure-devops:{{ .Version }}-arm64"
+      - "ghcr.io/conductorone/baton-azure-devops:latest-arm64"
+    build_flag_templates:
+      - "--platform=linux/arm64/v8"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title=baton-azure-devops"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+      - "--label=org.opencontainers.image.source=https://github.com/conductorone/baton-azure-devops"
+docker_manifests:
+  - name_template: ghcr.io/conductorone/baton-azure-devops:{{ .Version }}
+    image_templates:
+      - ghcr.io/conductorone/baton-azure-devops:{{ .Version }}-amd64
+      - ghcr.io/conductorone/baton-azure-devops:{{ .Version }}-arm64
+  - name_template: ghcr.io/conductorone/baton-azure-devops:latest
+    image_templates:
+      - ghcr.io/conductorone/baton-azure-devops:latest-amd64
+      - ghcr.io/conductorone/baton-azure-devops:latest-arm64
+checksum:
+  disable: true
+release:
+  disable: true
+changelog:
+  disable: true
