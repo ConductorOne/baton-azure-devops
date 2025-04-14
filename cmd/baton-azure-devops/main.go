@@ -45,15 +45,15 @@ func main() {
 func getConnector(ctx context.Context, v *viper.Viper) (types.ConnectorServer, error) {
 	l := ctxzap.Extract(ctx)
 
-	personalAccessToken := v.GetString(bearerToken.FieldName)
-	organizationUrl := v.GetString(organizations.FieldName)
-	azureUserSubjectTypes := v.GetStringSlice(userSubjectTypes.FieldName)
+	personalAccessToken := v.GetString(bearerTokenField.FieldName)
+	organizationUrl := v.GetString(organizationUrlField.FieldName)
+	syncGrantSources := v.GetBool(syncGrantSourcesField.FieldName)
 
 	if err := ValidateConfig(v); err != nil {
 		return nil, err
 	}
 
-	connectorBuilder, err := connectorSchema.New(ctx, personalAccessToken, organizationUrl, azureUserSubjectTypes)
+	connectorBuilder, err := connectorSchema.New(ctx, personalAccessToken, organizationUrl, syncGrantSources)
 	if err != nil {
 		l.Error("error creating connector", zap.Error(err))
 		return nil, err

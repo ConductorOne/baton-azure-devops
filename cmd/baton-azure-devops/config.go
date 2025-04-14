@@ -6,25 +6,25 @@ import (
 )
 
 var (
-	bearerToken = field.StringField(
+	bearerTokenField = field.StringField(
 		"personal-access-token",
 		field.WithDescription("The bearer token used to authenticate the request for Azure Dev Ops"),
 		field.WithRequired(true),
 	)
-	organizations = field.StringField(
+	organizationUrlField = field.StringField(
 		"organization-url",
 		field.WithDescription("The organization ids used to sync data for Azure Dev Ops"),
 		field.WithRequired(true),
 	)
-	userSubjectTypes = field.StringSliceField(
-		"user-subject-types",
-		field.WithDescription("A comma separated list of user subject subtypes to reduce the retrieved results, e.g. msa’, ‘aad’, ‘svc’ (service identity), ‘imp’ (imported identity), etc."),
-		field.WithRequired(false),
+	syncGrantSourcesField = field.BoolField(
+		"sync-grant-sources",
+		field.WithDefaultValue(false),
+		field.WithDescription("Sync grant sources. If this is not set, grant sources will not be synced."),
 	)
 	// ConfigurationFields defines the external configuration required for the
 	// connector to run. Note: these fields can be marked as optional or
 	// required.
-	ConfigurationFields = []field.SchemaField{bearerToken, organizations, userSubjectTypes}
+	ConfigurationFields = []field.SchemaField{bearerTokenField, organizationUrlField, syncGrantSourcesField}
 
 	// FieldRelationships defines relationships between the fields listed in
 	// ConfigurationFields that can be automatically validated. For example, a
