@@ -12,18 +12,19 @@ import (
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/graph"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/identity"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/security"
+	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/webapi"
 	"go.uber.org/zap"
 )
 
 type AzureDevOpsClient struct {
-	userSubjectTypes []string
+	SyncGrantSources bool
 	coreClient       core.Client
 	graphClient      graph.Client
 	securityClient   security.Client
 	identityClient   identity.Client
 }
 
-func New(ctx context.Context, personalAccessToken, organization string, userSubjectTypes []string) (*AzureDevOpsClient, error) {
+func New(ctx context.Context, personalAccessToken, organization string, syncGrantSources bool) (*AzureDevOpsClient, error) {
 	l := ctxzap.Extract(ctx)
 	connection := azuredevops.NewPatConnection(organization, personalAccessToken)
 
@@ -50,7 +51,7 @@ func New(ctx context.Context, personalAccessToken, organization string, userSubj
 		graphClient:      graphClient,
 		securityClient:   securityClient,
 		identityClient:   identityClient,
-		userSubjectTypes: userSubjectTypes,
+		SyncGrantSources: syncGrantSources,
 	}
 
 	return &client, nil
@@ -60,9 +61,7 @@ func (c *AzureDevOpsClient) ListUsers(ctx context.Context, nextContinuationToken
 	l := ctxzap.Extract(ctx)
 	nextPageToken := ""
 
-	userArgs := graph.ListUsersArgs{
-		SubjectTypes: &c.userSubjectTypes,
-	}
+	userArgs := graph.ListUsersArgs{}
 	if nextContinuationToken != "" {
 		userArgs.ContinuationToken = &nextContinuationToken
 	}
@@ -114,6 +113,21 @@ func (c *AzureDevOpsClient) ListTeams(ctx context.Context) ([]core.WebApiTeam, e
 	return *teams, nil
 }
 
+func (c *AzureDevOpsClient) ListTeamMembers(ctx context.Context, projectId, teamId string) ([]webapi.TeamMember, error) {
+	l := ctxzap.Extract(ctx)
+
+	teamMembersArgs := core.GetTeamMembersWithExtendedPropertiesArgs{
+		ProjectId: &projectId,
+		TeamId:    &teamId,
+	}
+	teamMembers, err := c.coreClient.GetTeamMembersWithExtendedProperties(ctx, teamMembersArgs)
+	if err != nil {
+		l.Error(fmt.Sprintf("Error getting resources: %s", err))
+		return nil, err
+	}
+	return *teamMembers, nil
+}
+
 func (c *AzureDevOpsClient) ListGroups(ctx context.Context, nextContinuationToken string) ([]graph.GraphGroup, string, error) {
 	l := ctxzap.Extract(ctx)
 	nextPageToken := ""
@@ -135,6 +149,28 @@ func (c *AzureDevOpsClient) ListGroups(ctx context.Context, nextContinuationToke
 	}
 
 	return *groups.GraphGroups, nextPageToken, nil
+}
+
+func (c *AzureDevOpsClient) ListIdentities(ctx context.Context, identityIds string, descriptors string) ([]identity.Identity, error) {
+	l := ctxzap.Extract(ctx)
+
+	readIdentitiesArgs := identity.ReadIdentitiesArgs{
+		QueryMembership: &identity.QueryMembershipValues.Expanded,
+	}
+	if identityIds != "" {
+		readIdentitiesArgs.IdentityIds = &identityIds
+	}
+	if descriptors != "" {
+		readIdentitiesArgs.Descriptors = &descriptors
+	}
+	identities, err := c.identityClient.ReadIdentities(ctx, readIdentitiesArgs)
+
+	if err != nil {
+		l.Error(fmt.Sprintf("Error getting resources: %s", err))
+		return nil, err
+	}
+
+	return *identities, nil
 }
 
 func (c *AzureDevOpsClient) ListSecurityNamespaces(ctx context.Context) ([]security.SecurityNamespaceDescription, error) {

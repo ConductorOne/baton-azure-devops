@@ -13,6 +13,7 @@ import (
 	"github.com/conductorone/baton-sdk/pkg/types/grant"
 	"github.com/conductorone/baton-sdk/pkg/types/resource"
 	"github.com/google/uuid"
+	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/identity"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/security"
 )
 
@@ -119,7 +120,18 @@ func (o *securityNamespaceBuilder) Grants(ctx context.Context, resource *v2.Reso
 					//user
 					grants = append(grants, parseIntoUserGrants(value, action, resource, userMap)...)
 				} else {
-					continue
+					//if it is a group or team add grant with expansion, missing support to differentiate between groups and teams
+					groupIdentities, err := o.client.ListIdentities(ctx, "", *value.Descriptor)
+					if err != nil {
+						continue
+					}
+					if len(groupIdentities) > 0 {
+						groupIdentity := groupIdentities[0]
+						if groupIdentity.Id != nil {
+							grants = append(grants, parseIntoGroupGrants(o.client.SyncGrantSources, value, action, resource, groupIdentity)...)
+						}
+
+					}
 				}
 			}
 		}
@@ -175,6 +187,49 @@ func parseIntoUserGrants(acesDictionary security.AccessControlEntry, action secu
 			}))
 			grants = append(grants, denyGrant)
 		}
+	}
+	return grants
+}
+
+func parseIntoGroupGrants(syncGrantSources bool, acesDictionary security.AccessControlEntry, action security.ActionDefinition, resource *v2.Resource, groupIdentity identity.Identity) []*v2.Grant {
+	var grants []*v2.Grant
+
+	//check if it is a team? listing teams?
+	groupResource := &v2.Resource{
+		Id: &v2.ResourceId{
+			ResourceType: groupResourceType.Id,
+			Resource:     groupIdentity.Id.String(),
+		},
+	}
+	var basicGrantOptions []grant.GrantOption
+	if syncGrantSources {
+		basicGrantOptions = append(basicGrantOptions, grant.WithAnnotation(&v2.GrantExpandable{
+			EntitlementIds: []string{
+				fmt.Sprintf("group:%s:member", groupIdentity.Id.String()),
+				fmt.Sprintf("group:%s:admin", groupIdentity.Id.String()),
+			},
+			Shallow: true,
+		}))
+	}
+	if *acesDictionary.Allow&*action.Bit != 0 {
+		grantOptions := make([]grant.GrantOption, len(basicGrantOptions))
+		copy(grantOptions, basicGrantOptions)
+
+		grantOptions = append(grantOptions, grant.WithAnnotation(&v2.V1Identifier{
+			Id: fmt.Sprintf("allow:%s:%s:%s", resource.Id.Resource, groupIdentity.Id.String(), *action.Name),
+		}))
+		allowGrant := grant.NewGrant(resource, fmt.Sprintf("allow_%v", *action.Name), groupResource, grantOptions...)
+		grants = append(grants, allowGrant)
+	}
+	if *acesDictionary.Deny&*action.Bit != 0 {
+		grantOptions := make([]grant.GrantOption, len(basicGrantOptions))
+		copy(grantOptions, basicGrantOptions)
+
+		grantOptions = append(grantOptions, grant.WithAnnotation(&v2.V1Identifier{
+			Id: fmt.Sprintf("deny:%s:%s:%s", resource.Id.Resource, groupIdentity.Id.String(), *action.Name),
+		}))
+		denyGrant := grant.NewGrant(resource, fmt.Sprintf("deny_%v", *action.Name), groupResource, grantOptions...)
+		grants = append(grants, denyGrant)
 	}
 	return grants
 }
