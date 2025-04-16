@@ -273,7 +273,6 @@ func parseIntoEntitlements(resource *v2.Resource, actionDisplayName, actionName,
 func parseIntoGrants(syncGrantSources bool, grantResource, resource *v2.Resource, acesDictionary security.AccessControlEntry, action security.ActionDefinition) []*v2.Grant {
 	var grants []*v2.Grant
 	var basicGrantOptions []grant.GrantOption
-
 	if syncGrantSources {
 		basicGrantOptions = append(basicGrantOptions, grant.WithAnnotation(&v2.GrantExpandable{
 			EntitlementIds: []string{
