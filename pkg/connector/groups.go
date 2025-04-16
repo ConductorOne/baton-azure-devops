@@ -30,7 +30,7 @@ func (o *groupBuilder) ResourceType(_ context.Context) *v2.ResourceType {
 func (o *groupBuilder) List(ctx context.Context, _ *v2.ResourceId, pToken *pagination.Token) ([]*v2.Resource, string, annotations.Annotations, error) {
 	var resources []*v2.Resource
 
-	groups, nextPageToken, err := o.client.ListGroups(ctx, pToken.Token)
+	groups, nextPageToken, err := o.client.ListOnlyGroups(ctx, pToken.Token)
 	if err != nil {
 		return nil, "", nil, err
 	}
@@ -134,11 +134,22 @@ func parseIntoGroupResource(group *graph.GraphGroup) (*v2.Resource, error) {
 		resource.WithGroupProfile(profile),
 	}
 
+	var parentId *v2.ResourceId = nil
+	if strings.Contains(*group.Domain, "TeamProject") {
+		parts := strings.Split(*group.Domain, "/")
+		parentId = &v2.ResourceId{
+			ResourceType: projectResourceType.Id,
+			Resource:     parts[len(parts)-1],
+		}
+	}
+
 	ret, err := resource.NewGroupResource(
 		*group.DisplayName,
 		groupResourceType,
 		*group.OriginId,
 		groupTraits,
+		resource.WithDescription(*group.Description),
+		resource.WithParentResourceID(parentId),
 	)
 	if err != nil {
 		return nil, err

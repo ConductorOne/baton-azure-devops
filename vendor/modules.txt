@@ -340,10 +340,14 @@ github.com/maypok86/otter/internal/xruntime
 # github.com/microsoft/azure-devops-go-api/azuredevops/v7 v7.1.0
 ## explicit; go 1.12
 github.com/microsoft/azure-devops-go-api/azuredevops/v7
+github.com/microsoft/azure-devops-go-api/azuredevops/v7/accounts
+github.com/microsoft/azure-devops-go-api/azuredevops/v7/commerce
 github.com/microsoft/azure-devops-go-api/azuredevops/v7/core
 github.com/microsoft/azure-devops-go-api/azuredevops/v7/delegatedauthorization
 github.com/microsoft/azure-devops-go-api/azuredevops/v7/graph
 github.com/microsoft/azure-devops-go-api/azuredevops/v7/identity
+github.com/microsoft/azure-devops-go-api/azuredevops/v7/licensing
+github.com/microsoft/azure-devops-go-api/azuredevops/v7/licensingrule
 github.com/microsoft/azure-devops-go-api/azuredevops/v7/operations
 github.com/microsoft/azure-devops-go-api/azuredevops/v7/profile
 github.com/microsoft/azure-devops-go-api/azuredevops/v7/security
