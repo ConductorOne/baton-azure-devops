@@ -13,6 +13,7 @@ import (
 	"github.com/conductorone/baton-sdk/pkg/types/grant"
 	"github.com/conductorone/baton-sdk/pkg/types/resource"
 	"github.com/google/uuid"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/security"
 )
 
@@ -46,11 +47,30 @@ func (o *securityNamespaceBuilder) List(ctx context.Context, _ *v2.ResourceId, _
 }
 
 func (o *securityNamespaceBuilder) Entitlements(ctx context.Context, resource *v2.Resource, _ *pagination.Token) ([]*v2.Entitlement, string, annotations.Annotations, error) {
+	l := ctxzap.Extract(ctx)
 	var entitlements []*v2.Entitlement
 
 	namespaceUUID, err := uuid.Parse(resource.Id.Resource)
 	if err != nil {
 		return nil, "", nil, err
+	}
+
+	// get all projects
+	projectsMap := make(map[string]string)
+	nextPageToken := ""
+	for {
+		projects, nextPageToken, err := o.client.ListProjects(ctx, nextPageToken)
+		if err != nil {
+			l.Error(fmt.Sprintf("Error getting list of projects %v", err))
+		}
+
+		for _, project := range projects {
+			projectsMap[project.Id.String()] = *project.Name
+		}
+
+		if nextPageToken == "" {
+			break
+		}
 	}
 
 	actions, err := o.client.ListActionsBySecurityNamespace(ctx, namespaceUUID)
@@ -70,15 +90,11 @@ func (o *securityNamespaceBuilder) Entitlements(ctx context.Context, resource *v
 				actionDisplayName = *action.DisplayName
 			}
 
-			assigmentOptions := []entitlement.EntitlementOption{
-				entitlement.WithGrantableTo(userResourceType),
-				entitlement.WithGrantableTo(groupResourceType),
-				entitlement.WithDescription(fmt.Sprintf("%s for action %s", resource.DisplayName, actionDisplayName)),
-				entitlement.WithDisplayName(actionDisplayName),
-			}
+			entitlements = append(entitlements, parseIntoEntitlements(resource, actionDisplayName, actionName, "")...)
 
-			entitlements = append(entitlements, entitlement.NewPermissionEntitlement(resource, fmt.Sprintf("allow_%v", actionName), assigmentOptions...))
-			entitlements = append(entitlements, entitlement.NewPermissionEntitlement(resource, fmt.Sprintf("deny_%v", actionName), assigmentOptions...))
+			for _, projectName := range projectsMap {
+				entitlements = append(entitlements, parseIntoEntitlements(resource, actionDisplayName, actionName, fmt.Sprintf("[%s]", projectName))...)
+			}
 		}
 	}
 
@@ -86,6 +102,8 @@ func (o *securityNamespaceBuilder) Entitlements(ctx context.Context, resource *v
 }
 
 func (o *securityNamespaceBuilder) Grants(ctx context.Context, resource *v2.Resource, _ *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
+	l := ctxzap.Extract(ctx)
+
 	var grants []*v2.Grant
 
 	namespaceUUID, err := uuid.Parse(resource.Id.Resource)
@@ -127,20 +145,38 @@ func (o *securityNamespaceBuilder) Grants(ctx context.Context, resource *v2.Reso
 						grants = append(grants, parseIntoGrants(o.client.SyncGrantSources, userResource, resource, value, action)...)
 					}
 				} else {
-					teamsMap, err := o.client.ListTeamIds(ctx)
+					teamsMap, err := o.client.ListTeamIDs(ctx)
+					if err != nil {
+						l.Error(fmt.Sprintf("Failed to list teams %v", err))
+						continue
+					}
 					groupIdentities, err := o.client.ListIdentities(ctx, "", *value.Descriptor)
 					if err != nil {
+						l.Error(fmt.Sprintf("Failed to list identities %v", err))
 						continue
 					}
 					if len(groupIdentities) > 0 {
 						groupIdentity := groupIdentities[0]
 						if groupIdentity.Id != nil {
+							var parentResource *v2.ResourceId
+
+							// get parent name
+							parts := strings.Split(*groupIdentity.ProviderDisplayName, `\`)
+							if len(parts) == 2 {
+								providerDisplayName := parts[0]
+								parentResource = &v2.ResourceId{
+									ResourceType: projectResourceType.Id,
+									Resource:     providerDisplayName,
+								}
+							}
+
 							if _, isTeam := teamsMap[groupIdentity.Id.String()]; isTeam {
 								teamResource := &v2.Resource{
 									Id: &v2.ResourceId{
 										ResourceType: teamResourceType.Id,
 										Resource:     groupIdentity.Id.String(),
 									},
+									ParentResourceId: parentResource,
 								}
 								grants = append(grants, parseIntoGrants(o.client.SyncGrantSources, teamResource, resource, value, action)...)
 							} else {
@@ -149,11 +185,11 @@ func (o *securityNamespaceBuilder) Grants(ctx context.Context, resource *v2.Reso
 										ResourceType: groupResourceType.Id,
 										Resource:     groupIdentity.Id.String(),
 									},
+									ParentResourceId: parentResource,
 								}
 								grants = append(grants, parseIntoGrants(o.client.SyncGrantSources, groupResource, resource, value, action)...)
 							}
 						}
-
 					}
 				}
 			}
@@ -183,6 +219,57 @@ func newSecurityNamespaceBuilder(c *client.AzureDevOpsClient) *securityNamespace
 	}
 }
 
+func getEntitlementName(permission, actionName string, projectResource *v2.ResourceId) string {
+	permissionEntitlementName := strings.Join([]string{permission, actionName}, "_")
+	if projectResource != nil {
+		permissionEntitlementName = strings.Join([]string{projectResource.Resource, permissionEntitlementName}, "_")
+	}
+
+	return permissionEntitlementName
+}
+
+func parseIntoEntitlements(resource *v2.Resource, actionDisplayName, actionName, projectName string) []*v2.Entitlement {
+	var entitlements []*v2.Entitlement
+
+	var projectResourceId *v2.ResourceId
+
+	displayName := actionDisplayName
+
+	permissionLevel := "organization"
+	if projectName != "" {
+		permissionLevel = fmt.Sprintf("project (%s)", projectName)
+		displayName = fmt.Sprintf("%s(%s)", projectName, actionDisplayName)
+		projectResourceId = &v2.ResourceId{
+			ResourceType: projectResourceType.Id,
+			Resource:     projectName,
+		}
+	}
+	description := fmt.Sprintf("action \"%s\" for security namespace \"%s\" at %s level",
+		actionDisplayName,
+		resource.DisplayName,
+		permissionLevel,
+	)
+
+	assigmentOptions := []entitlement.EntitlementOption{
+		entitlement.WithGrantableTo(userResourceType, groupResourceType, teamResourceType),
+		entitlement.WithDescription(description),
+		entitlement.WithDisplayName(displayName),
+	}
+
+	entitlements = append(entitlements, entitlement.NewPermissionEntitlement(
+		resource,
+		getEntitlementName("allow", actionName, projectResourceId),
+		assigmentOptions...,
+	))
+	entitlements = append(entitlements, entitlement.NewPermissionEntitlement(
+		resource,
+		getEntitlementName("deny", actionName, projectResourceId),
+		assigmentOptions...,
+	))
+
+	return entitlements
+}
+
 func parseIntoGrants(syncGrantSources bool, grantResource, resource *v2.Resource, acesDictionary security.AccessControlEntry, action security.ActionDefinition) []*v2.Grant {
 	var grants []*v2.Grant
 	var basicGrantOptions []grant.GrantOption
@@ -199,24 +286,27 @@ func parseIntoGrants(syncGrantSources bool, grantResource, resource *v2.Resource
 	}
 
 	if *acesDictionary.Allow&*action.Bit != 0 {
-		grantOptions := make([]grant.GrantOption, len(basicGrantOptions))
-		copy(grantOptions, basicGrantOptions)
-
-		grantOptions = append(grantOptions, grant.WithAnnotation(&v2.V1Identifier{
-			Id: fmt.Sprintf("allow:%s:%s:%s", resource.Id.Resource, grantResource.Id.Resource, *action.Name),
-		}))
-		allowGrant := grant.NewGrant(resource, fmt.Sprintf("allow_%v", *action.Name), grantResource, grantOptions...)
-		grants = append(grants, allowGrant)
+		grants = append(grants, parseIntoGrantItem("allow", *action.Name, resource, grantResource, basicGrantOptions))
 	}
 	if *acesDictionary.Deny&*action.Bit != 0 {
-		grantOptions := make([]grant.GrantOption, len(basicGrantOptions))
-		copy(grantOptions, basicGrantOptions)
-
-		grantOptions = append(grantOptions, grant.WithAnnotation(&v2.V1Identifier{
-			Id: fmt.Sprintf("deny:%s:%s:%s", resource.Id.Resource, grantResource.Id.Resource, *action.Name),
-		}))
-		denyGrant := grant.NewGrant(resource, fmt.Sprintf("deny_%v", *action.Name), grantResource, grantOptions...)
-		grants = append(grants, denyGrant)
+		grants = append(grants, parseIntoGrantItem("deny", *action.Name, resource, grantResource, basicGrantOptions))
 	}
 	return grants
+}
+
+func parseIntoGrantItem(permission, actionName string, resource, grantResource *v2.Resource, grantOptions []grant.GrantOption) *v2.Grant {
+	grantIdentifier := strings.Join([]string{permission, resource.Id.Resource, grantResource.Id.Resource, actionName}, ":")
+	if grantResource.ParentResourceId != nil {
+		grantIdentifier = strings.Join([]string{grantResource.ParentResourceId.Resource, grantIdentifier}, ":")
+	}
+
+	grantOptions = append(grantOptions, grant.WithAnnotation(&v2.V1Identifier{
+		Id: grantIdentifier,
+	}))
+	return grant.NewGrant(
+		resource,
+		getEntitlementName(permission, actionName, grantResource.ParentResourceId),
+		grantResource,
+		grantOptions...,
+	)
 }

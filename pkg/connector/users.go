@@ -56,11 +56,11 @@ func (o *userBuilder) Grants(_ context.Context, _ *v2.Resource, _ *pagination.To
 func parseIntoUserResource(userEntitlement *userentitlement.UserEntitlement) (*v2.Resource, error) {
 	var userStatus = v2.UserTrait_Status_STATUS_ENABLED
 	if userEntitlement.AccessLevel.Status != nil {
-		//status valid options: none, active, disabled, deleted, pending, expired, pendingDisabled
-		status := *userEntitlement.AccessLevel.Status
-		if status == accounts.AccountUserStatusValues.Disabled {
+		// status valid options: none, active, disabled, deleted, pending, expired, pendingDisabled
+		switch *userEntitlement.AccessLevel.Status {
+		case accounts.AccountUserStatusValues.Disabled:
 			userStatus = v2.UserTrait_Status_STATUS_DISABLED
-		} else if status == accounts.AccountUserStatusValues.Deleted {
+		case accounts.AccountUserStatusValues.Deleted:
 			userStatus = v2.UserTrait_Status_STATUS_DELETED
 		}
 	}

@@ -11,6 +11,7 @@ import (
 	"github.com/conductorone/baton-sdk/pkg/types/entitlement"
 	"github.com/conductorone/baton-sdk/pkg/types/grant"
 	"github.com/conductorone/baton-sdk/pkg/types/resource"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/core"
 )
 
@@ -39,7 +40,7 @@ func (o *teamBuilder) List(ctx context.Context, _ *v2.ResourceId, _ *pagination.
 
 	for _, team := range teams {
 		teamCopy := &team
-		teamResource, err := parseIntoTeamResource(teamCopy)
+		teamResource, err := parseIntoTeamResource(ctx, teamCopy)
 		if err != nil {
 			return nil, "", nil, err
 		}
@@ -102,7 +103,9 @@ func (o *teamBuilder) Grants(ctx context.Context, resource *v2.Resource, _ *pagi
 	return grants, "", nil, nil
 }
 
-func parseIntoTeamResource(team *core.WebApiTeam) (*v2.Resource, error) {
+func parseIntoTeamResource(ctx context.Context, team *core.WebApiTeam) (*v2.Resource, error) {
+	l := ctxzap.Extract(ctx)
+
 	profile := map[string]interface{}{
 		"team_id":      team.Id.String(),
 		"display_name": *team.Name,
@@ -115,6 +118,9 @@ func parseIntoTeamResource(team *core.WebApiTeam) (*v2.Resource, error) {
 		resource.WithGroupProfile(profile),
 	}
 	parentResourceId, err := resource.NewResourceID(projectResourceType, team.ProjectId.String())
+	if err != nil {
+		l.Error(fmt.Sprintf("Failed to create parent resource: %s", err))
+	}
 
 	ret, err := resource.NewGroupResource(
 		*team.Name,

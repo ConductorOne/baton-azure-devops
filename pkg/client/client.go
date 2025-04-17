@@ -113,7 +113,7 @@ func (c *AzureDevOpsClient) ListProjects(ctx context.Context, nextContinuationTo
 func (c *AzureDevOpsClient) ListTeams(ctx context.Context) ([]core.WebApiTeam, error) {
 	l := ctxzap.Extract(ctx)
 
-	//Teams client query is not supporting pagination
+	// Teams client query is not supporting pagination
 	teams, err := c.coreClient.GetAllTeams(ctx, core.GetAllTeamsArgs{})
 	if err != nil {
 		l.Error(fmt.Sprintf("Error getting resources: %s", err))
@@ -170,7 +170,7 @@ func (c *AzureDevOpsClient) ListOnlyGroups(ctx context.Context, nextContinuation
 		return nil, "", err
 	}
 
-	teamsMap, err := c.ListTeamIds(ctx)
+	teamsMap, err := c.ListTeamIDs(ctx)
 	if err != nil {
 		return nil, "", err
 	}
@@ -185,7 +185,7 @@ func (c *AzureDevOpsClient) ListOnlyGroups(ctx context.Context, nextContinuation
 	return filteredGroups, nextToken, nil
 }
 
-func (c *AzureDevOpsClient) ListTeamIds(ctx context.Context) (map[string]bool, error) {
+func (c *AzureDevOpsClient) ListTeamIDs(ctx context.Context) (map[string]bool, error) {
 	l := ctxzap.Extract(ctx)
 
 	teamsMap := make(map[string]bool)
@@ -202,14 +202,14 @@ func (c *AzureDevOpsClient) ListTeamIds(ctx context.Context) (map[string]bool, e
 	return teamsMap, nil
 }
 
-func (c *AzureDevOpsClient) ListIdentities(ctx context.Context, identityIds string, descriptors string) ([]identity.Identity, error) {
+func (c *AzureDevOpsClient) ListIdentities(ctx context.Context, identityIDs string, descriptors string) ([]identity.Identity, error) {
 	l := ctxzap.Extract(ctx)
 
 	readIdentitiesArgs := identity.ReadIdentitiesArgs{
 		QueryMembership: &identity.QueryMembershipValues.Expanded,
 	}
-	if identityIds != "" {
-		readIdentitiesArgs.IdentityIds = &identityIds
+	if identityIDs != "" {
+		readIdentitiesArgs.IdentityIds = &identityIDs
 	}
 	if descriptors != "" {
 		readIdentitiesArgs.Descriptors = &descriptors

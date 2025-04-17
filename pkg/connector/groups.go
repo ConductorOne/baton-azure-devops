@@ -2,7 +2,6 @@ package connector
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -74,12 +73,12 @@ func (o *groupBuilder) Grants(ctx context.Context, resource *v2.Resource, _ *pag
 	for _, groupIdentity := range groupIdentities {
 		if groupIdentity.MemberIds != nil {
 			if len(*groupIdentity.MemberIds) > 0 {
-				memberIds := make([]string, len(*groupIdentity.MemberIds))
-				for _, memberId := range *groupIdentity.MemberIds {
-					memberIds = append(memberIds, memberId.String())
+				memberIDs := make([]string, len(*groupIdentity.MemberIds))
+				for _, memberID := range *groupIdentity.MemberIds {
+					memberIDs = append(memberIDs, memberID.String())
 				}
-				memberIdsStr := strings.Join(memberIds, ",")
-				identities, err := o.client.ListIdentities(ctx, memberIdsStr, "")
+				memberIDsStr := strings.Join(memberIDs, ",")
+				identities, err := o.client.ListIdentities(ctx, memberIDsStr, "")
 				if err != nil {
 					return nil, "", nil, err
 				}
@@ -112,11 +111,9 @@ func (o *groupBuilder) Grants(ctx context.Context, resource *v2.Resource, _ *pag
 						membershipGrant := grant.NewGrant(resource, memberPermission, groupResource.Id)
 						grants = append(grants, membershipGrant)
 					}
-
 				}
 			}
 		}
-
 	}
 	return grants, "", nil, nil
 }
@@ -163,19 +160,4 @@ func newGroupBuilder(c *client.AzureDevOpsClient) *groupBuilder {
 		resourceType: groupResourceType,
 		client:       c,
 	}
-}
-
-func unmarshalProperties(properties interface{}) (map[string]interface{}, error) {
-	rawBytes, err := json.Marshal(properties)
-	if err != nil {
-		return nil, err
-	}
-
-	var propsMap map[string]interface{}
-	err = json.Unmarshal(rawBytes, &propsMap)
-	if err != nil {
-		return nil, err
-	}
-
-	return propsMap, nil
 }
