@@ -48,12 +48,13 @@ func getConnector(ctx context.Context, v *viper.Viper) (types.ConnectorServer, e
 	personalAccessToken := v.GetString(bearerTokenField.FieldName)
 	organizationUrl := v.GetString(organizationUrlField.FieldName)
 	syncGrantSources := v.GetBool(syncGrantSourcesField.FieldName)
+	securityNamespaces := v.GetStringSlice(securityNamespacesToSync.FieldName)
 
 	if err := ValidateConfig(v); err != nil {
 		return nil, err
 	}
 
-	connectorBuilder, err := connectorSchema.New(ctx, personalAccessToken, organizationUrl, syncGrantSources)
+	connectorBuilder, err := connectorSchema.New(ctx, personalAccessToken, organizationUrl, syncGrantSources, securityNamespaces)
 	if err != nil {
 		l.Error("error creating connector", zap.Error(err))
 		return nil, err

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/conductorone/baton-azure-devops/pkg/client/userentitlement"
 	"github.com/google/uuid"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7"
@@ -17,14 +18,16 @@ import (
 )
 
 type AzureDevOpsClient struct {
-	SyncGrantSources bool
-	coreClient       core.Client
-	graphClient      graph.Client
-	securityClient   security.Client
-	identityClient   identity.Client
+	SyncGrantSources      bool
+	securityNamespaces    []string
+	coreClient            core.Client
+	graphClient           graph.Client
+	securityClient        security.Client
+	identityClient        identity.Client
+	userEntitlementClient userentitlement.Client
 }
 
-func New(ctx context.Context, personalAccessToken, organization string, syncGrantSources bool) (*AzureDevOpsClient, error) {
+func New(ctx context.Context, personalAccessToken, organization string, syncGrantSources bool, securityNamespaces []string) (*AzureDevOpsClient, error) {
 	l := ctxzap.Extract(ctx)
 	connection := azuredevops.NewPatConnection(organization, personalAccessToken)
 
@@ -46,38 +49,45 @@ func New(ctx context.Context, personalAccessToken, organization string, syncGran
 		l.Info("error creating identity client", zap.Error(err))
 	}
 
+	userEntitlementClient, err := userentitlement.NewClient(ctx, connection)
+	if err != nil {
+		l.Info("error creating member entitlement management client", zap.Error(err))
+	}
+
 	client := AzureDevOpsClient{
-		coreClient:       coreClient,
-		graphClient:      graphClient,
-		securityClient:   securityClient,
-		identityClient:   identityClient,
-		SyncGrantSources: syncGrantSources,
+		coreClient:            coreClient,
+		graphClient:           graphClient,
+		securityClient:        securityClient,
+		identityClient:        identityClient,
+		userEntitlementClient: userEntitlementClient,
+		SyncGrantSources:      syncGrantSources,
+		securityNamespaces:    securityNamespaces,
 	}
 
 	return &client, nil
 }
 
-func (c *AzureDevOpsClient) ListUsers(ctx context.Context, nextContinuationToken string) ([]graph.GraphUser, string, error) {
+func (c *AzureDevOpsClient) ListUsers(ctx context.Context, nextContinuationToken string) ([]userentitlement.UserEntitlement, string, error) {
 	l := ctxzap.Extract(ctx)
 	nextPageToken := ""
 
-	userArgs := graph.ListUsersArgs{}
+	userArgs := userentitlement.SearchUserEntitlementsArgs{}
 	if nextContinuationToken != "" {
 		userArgs.ContinuationToken = &nextContinuationToken
 	}
 
-	users, err := c.graphClient.ListUsers(ctx, userArgs)
+	users, err := c.userEntitlementClient.SearchUserEntitlements(ctx, userArgs)
 	if err != nil {
 		l.Error(fmt.Sprintf("Error getting resources: %s", err))
 		return nil, "", err
 	}
 
-	continuationToken := *users.ContinuationToken
-	if continuationToken != nil && len(continuationToken) > 0 {
+	if users.ContinuationToken != nil && len(*users.ContinuationToken) > 0 {
+		continuationToken := *users.ContinuationToken
 		nextPageToken = continuationToken[0]
 	}
 
-	return *users.GraphUsers, nextPageToken, nil
+	return *users.Members, nextPageToken, nil
 }
 
 func (c *AzureDevOpsClient) ListProjects(ctx context.Context, nextContinuationToken string) ([]core.TeamProjectReference, string, error) {
@@ -143,12 +153,53 @@ func (c *AzureDevOpsClient) ListGroups(ctx context.Context, nextContinuationToke
 		return nil, "", err
 	}
 
-	continuationToken := *groups.ContinuationToken
-	if continuationToken != nil && len(continuationToken) > 0 {
+	if *groups.ContinuationToken != nil && len(*groups.ContinuationToken) > 0 {
+		continuationToken := *groups.ContinuationToken
 		nextPageToken = continuationToken[0]
 	}
 
 	return *groups.GraphGroups, nextPageToken, nil
+}
+
+func (c *AzureDevOpsClient) ListOnlyGroups(ctx context.Context, nextContinuationToken string) ([]graph.GraphGroup, string, error) {
+	l := ctxzap.Extract(ctx)
+
+	groups, nextToken, err := c.ListGroups(ctx, nextContinuationToken)
+	if err != nil {
+		l.Error(fmt.Sprintf("Error getting group resources: %s", err))
+		return nil, "", err
+	}
+
+	teamsMap, err := c.ListTeamIds(ctx)
+	if err != nil {
+		return nil, "", err
+	}
+	var filteredGroups []graph.GraphGroup
+	for _, group := range groups {
+		if group.OriginId != nil {
+			if _, isTeam := teamsMap[*group.OriginId]; !isTeam {
+				filteredGroups = append(filteredGroups, group)
+			}
+		}
+	}
+	return filteredGroups, nextToken, nil
+}
+
+func (c *AzureDevOpsClient) ListTeamIds(ctx context.Context) (map[string]bool, error) {
+	l := ctxzap.Extract(ctx)
+
+	teamsMap := make(map[string]bool)
+	teams, err := c.ListTeams(ctx)
+	if err != nil {
+		l.Error(fmt.Sprintf("Error getting team resources: %s", err))
+		return nil, err
+	}
+	for _, team := range teams {
+		if team.Id != nil {
+			teamsMap[team.Id.String()] = true
+		}
+	}
+	return teamsMap, nil
 }
 
 func (c *AzureDevOpsClient) ListIdentities(ctx context.Context, identityIds string, descriptors string) ([]identity.Identity, error) {
@@ -176,13 +227,32 @@ func (c *AzureDevOpsClient) ListIdentities(ctx context.Context, identityIds stri
 func (c *AzureDevOpsClient) ListSecurityNamespaces(ctx context.Context) ([]security.SecurityNamespaceDescription, error) {
 	l := ctxzap.Extract(ctx)
 
-	namespaces, err := c.securityClient.QuerySecurityNamespaces(ctx, security.QuerySecurityNamespacesArgs{})
-	if err != nil {
-		l.Error(fmt.Sprintf("Error getting resources: %s", err))
-		return nil, err
+	var securityNamespacesArgs []security.QuerySecurityNamespacesArgs
+	for _, namespace := range c.securityNamespaces {
+		namespaceUUID, err := uuid.Parse(namespace)
+		if err != nil {
+			l.Error(fmt.Sprintf("Error parsing UUID: %s", err))
+			continue
+		}
+		securityNamespacesArgs = append(securityNamespacesArgs, security.QuerySecurityNamespacesArgs{
+			SecurityNamespaceId: &namespaceUUID,
+		})
+	}
+	if len(securityNamespacesArgs) == 0 {
+		securityNamespacesArgs = append(securityNamespacesArgs, security.QuerySecurityNamespacesArgs{})
 	}
 
-	return *namespaces, nil
+	var finalNamespaces []security.SecurityNamespaceDescription
+	for _, arguments := range securityNamespacesArgs {
+		namespaces, err := c.securityClient.QuerySecurityNamespaces(ctx, arguments)
+		if err != nil {
+			l.Error(fmt.Sprintf("Error getting resources: %s", err))
+			return nil, err
+		}
+		finalNamespaces = append(finalNamespaces, *namespaces...)
+	}
+
+	return finalNamespaces, nil
 }
 
 func (c *AzureDevOpsClient) ListActionsBySecurityNamespace(ctx context.Context, securityNamespaceId uuid.UUID) ([]security.ActionDefinition, error) {
@@ -224,7 +294,7 @@ func (c *AzureDevOpsClient) GetUsersMap(ctx context.Context) (map[string]string,
 		}
 
 		for _, user := range users {
-			userMap[*user.PrincipalName] = *user.Descriptor
+			userMap[*user.User.PrincipalName] = *user.User.Descriptor
 		}
 
 		if nextPageToken == "" {

@@ -13,7 +13,7 @@ var (
 	)
 	organizationUrlField = field.StringField(
 		"organization-url",
-		field.WithDescription("The organization ids used to sync data for Azure Dev Ops"),
+		field.WithDescription("The organization url used to sync data for Azure Dev Ops"),
 		field.WithRequired(true),
 	)
 	syncGrantSourcesField = field.BoolField(
@@ -21,10 +21,20 @@ var (
 		field.WithDefaultValue(false),
 		field.WithDescription("Sync grant sources. If this is not set, grant sources will not be synced."),
 	)
+	securityNamespacesToSync = field.StringSliceField(
+		"security-namespaces",
+		field.WithDescription("Optional security namespaces to sync data from"),
+		field.WithRequired(false),
+	)
 	// ConfigurationFields defines the external configuration required for the
 	// connector to run. Note: these fields can be marked as optional or
 	// required.
-	ConfigurationFields = []field.SchemaField{bearerTokenField, organizationUrlField, syncGrantSourcesField}
+	ConfigurationFields = []field.SchemaField{
+		bearerTokenField,
+		organizationUrlField,
+		syncGrantSourcesField,
+		securityNamespacesToSync,
+	}
 
 	// FieldRelationships defines relationships between the fields listed in
 	// ConfigurationFields that can be automatically validated. For example, a

@@ -4,11 +4,12 @@ import (
 	"context"
 
 	"github.com/conductorone/baton-azure-devops/pkg/client"
+	"github.com/conductorone/baton-azure-devops/pkg/client/userentitlement"
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/annotations"
 	"github.com/conductorone/baton-sdk/pkg/pagination"
 	"github.com/conductorone/baton-sdk/pkg/types/resource"
-	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/graph"
+	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/accounts"
 )
 
 type userBuilder struct {
@@ -52,25 +53,41 @@ func (o *userBuilder) Grants(_ context.Context, _ *v2.Resource, _ *pagination.To
 	return nil, "", nil, nil
 }
 
-func parseIntoUserResource(user *graph.GraphUser) (*v2.Resource, error) {
+func parseIntoUserResource(userEntitlement *userentitlement.UserEntitlement) (*v2.Resource, error) {
 	var userStatus = v2.UserTrait_Status_STATUS_ENABLED
+	if userEntitlement.AccessLevel.Status != nil {
+		//status valid options: none, active, disabled, deleted, pending, expired, pendingDisabled
+		status := *userEntitlement.AccessLevel.Status
+		if status == accounts.AccountUserStatusValues.Disabled {
+			userStatus = v2.UserTrait_Status_STATUS_DISABLED
+		} else if status == accounts.AccountUserStatusValues.Deleted {
+			userStatus = v2.UserTrait_Status_STATUS_DELETED
+		}
+	}
+
+	var accountType v2.UserTrait_AccountType
+	if userEntitlement.User.MetaType != nil && *userEntitlement.User.MetaType == "application" {
+		accountType = v2.UserTrait_ACCOUNT_TYPE_SERVICE
+	}
 
 	profile := map[string]interface{}{
-		"user_descriptor": *user.Descriptor,
-		"username":        *user.DisplayName,
-		"email":           *user.MailAddress,
+		"user_descriptor": *userEntitlement.User.Descriptor,
+		"username":        *userEntitlement.User.DisplayName,
+		"email":           *userEntitlement.User.MailAddress,
 	}
 	userTraits := []resource.UserTraitOption{
 		resource.WithUserProfile(profile),
 		resource.WithStatus(userStatus),
-		resource.WithEmail(*user.MailAddress, true),
-		resource.WithUserLogin(*user.DisplayName),
+		resource.WithEmail(*userEntitlement.User.MailAddress, true),
+		resource.WithUserLogin(*userEntitlement.User.DisplayName),
+		resource.WithLastLogin(userEntitlement.LastAccessedDate.Time),
+		resource.WithAccountType(accountType),
 	}
 
 	userResource, err := resource.NewUserResource(
-		*user.DisplayName,
+		*userEntitlement.User.DisplayName,
 		userResourceType,
-		*user.Descriptor,
+		*userEntitlement.User.Descriptor,
 		userTraits,
 	)
 	if err != nil {

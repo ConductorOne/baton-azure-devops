@@ -80,17 +80,23 @@ func (o *teamBuilder) Grants(ctx context.Context, resource *v2.Resource, _ *pagi
 	}
 
 	for _, member := range members {
-		userResource := &v2.Resource{
-			Id: &v2.ResourceId{
+		finalResource := &v2.Resource{}
+		if member.Identity.IsContainer != nil && *member.Identity.IsContainer {
+			finalResource.Id = &v2.ResourceId{
+				ResourceType: groupResourceType.Id,
+				Resource:     *member.Identity.Id,
+			}
+		} else {
+			finalResource.Id = &v2.ResourceId{
 				ResourceType: userResourceType.Id,
 				Resource:     *member.Identity.Descriptor,
-			},
+			}
 		}
 		permissionName := memberPermission
 		if member.IsTeamAdmin != nil && *member.IsTeamAdmin {
 			permissionName = adminPermission
 		}
-		membershipGrant := grant.NewGrant(resource, permissionName, userResource.Id)
+		membershipGrant := grant.NewGrant(resource, permissionName, finalResource.Id)
 		grants = append(grants, membershipGrant)
 	}
 	return grants, "", nil, nil
