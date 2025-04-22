@@ -88,11 +88,14 @@ linters:
     - usestdlibvars # detect the possibility to use variables/constants from the Go standard library
     - whitespace # Tool for detection of leading and trailing whitespace
 issues:
-  skip-files:
-    - pkg/client/userentitlement/client.go
-    - pkg/client/userentitlement/models.go
   max-same-issues: 50
   exclude-rules:
     # Don't require TODO comments to end in a period
     - source: "(TODO)"
       linters: [godot]
+    - path: userentitlement/
+      linters:
+        - revive
+        - bodyclose
+        - gocritic
+        - godot
