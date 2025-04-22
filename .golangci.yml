@@ -93,3 +93,9 @@ issues:
     # Don't require TODO comments to end in a period
     - source: "(TODO)"
       linters: [godot]
+    - path: userentitlement/
+      linters:
+        - revive
+        - bodyclose
+        - gocritic
+        - godot

@@ -10,3 +10,27 @@ var userResourceType = &v2.ResourceType{
 	DisplayName: "User",
 	Traits:      []v2.ResourceType_Trait{v2.ResourceType_TRAIT_USER},
 }
+
+var projectResourceType = &v2.ResourceType{
+	Id:          "project",
+	DisplayName: "Project",
+	Traits:      []v2.ResourceType_Trait{},
+}
+
+var teamResourceType = &v2.ResourceType{
+	Id:          "team",
+	DisplayName: "Team",
+	Traits:      []v2.ResourceType_Trait{v2.ResourceType_TRAIT_GROUP},
+}
+
+var securityNamespaceResourceType = &v2.ResourceType{
+	Id:          "securityNamespace",
+	DisplayName: "SecurityNamespace",
+	Traits:      []v2.ResourceType_Trait{},
+}
+
+var groupResourceType = &v2.ResourceType{
+	Id:          "group",
+	DisplayName: "Group",
+	Traits:      []v2.ResourceType_Trait{v2.ResourceType_TRAIT_GROUP},
+}
