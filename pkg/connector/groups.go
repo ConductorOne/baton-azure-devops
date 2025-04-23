@@ -74,12 +74,12 @@ func (o *groupBuilder) Grants(ctx context.Context, resource *v2.Resource, _ *pag
 	for _, groupIdentity := range groupIdentities {
 		if groupIdentity.MemberIds != nil {
 			if len(*groupIdentity.MemberIds) > 0 {
-				memberIds := make([]string, len(*groupIdentity.MemberIds))
+				memberIDs := make([]string, len(*groupIdentity.MemberIds))
 				for _, memberId := range *groupIdentity.MemberIds {
-					memberIds = append(memberIds, memberId.String())
+					memberIDs = append(memberIDs, memberId.String())
 				}
-				memberIdsStr := strings.Join(memberIds, ",")
-				identities, err := o.client.ListIdentities(ctx, memberIdsStr, "")
+				memberIDsStr := strings.Join(memberIDs, ",")
+				identities, err := o.client.ListIdentities(ctx, memberIDsStr, "")
 				if err != nil {
 					return nil, "", nil, err
 				}
@@ -112,11 +112,9 @@ func (o *groupBuilder) Grants(ctx context.Context, resource *v2.Resource, _ *pag
 						membershipGrant := grant.NewGrant(resource, memberPermission, groupResource.Id)
 						grants = append(grants, membershipGrant)
 					}
-
 				}
 			}
 		}
-
 	}
 	return grants, "", nil, nil
 }

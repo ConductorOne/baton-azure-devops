@@ -127,7 +127,10 @@ func (o *securityNamespaceBuilder) Grants(ctx context.Context, resource *v2.Reso
 						grants = append(grants, parseIntoGrants(o.client.SyncGrantSources, userResource, resource, value, action)...)
 					}
 				} else {
-					teamsMap, err := o.client.ListTeamIds(ctx)
+					teamsMap, err := o.client.ListTeamIDs(ctx)
+					if err != nil {
+						return nil, "", nil, err
+					}
 					groupIdentities, err := o.client.ListIdentities(ctx, "", *value.Descriptor)
 					if err != nil {
 						continue
@@ -153,7 +156,6 @@ func (o *securityNamespaceBuilder) Grants(ctx context.Context, resource *v2.Reso
 								grants = append(grants, parseIntoGrants(o.client.SyncGrantSources, groupResource, resource, value, action)...)
 							}
 						}
-
 					}
 				}
 			}

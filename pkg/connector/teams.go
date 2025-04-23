@@ -115,6 +115,9 @@ func parseIntoTeamResource(team *core.WebApiTeam) (*v2.Resource, error) {
 		resource.WithGroupProfile(profile),
 	}
 	parentResourceId, err := resource.NewResourceID(projectResourceType, team.ProjectId.String())
+	if err != nil {
+		return nil, err
+	}
 
 	ret, err := resource.NewGroupResource(
 		*team.Name,

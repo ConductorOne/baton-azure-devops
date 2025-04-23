@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/conductorone/baton-azure-devops/pkg/client/userentitlement"
 	"github.com/google/uuid"
@@ -89,6 +90,33 @@ func (c *AzureDevOpsClient) ListUsers(ctx context.Context, nextContinuationToken
 	return *users.Members, nextPageToken, nil
 }
 
+func (c *AzureDevOpsClient) CreateUserEntitlement(ctx context.Context, ue *userentitlement.UserEntitlement) (*userentitlement.UserEntitlement, error) {
+	args := userentitlement.AddUserEntitlementArgs{
+		UserEntitlement: ue,
+	}
+	resp, err := c.userEntitlementClient.AddUserEntitlement(ctx, args)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add user entitlement: %w", err)
+	}
+	// If the operation result exists and indicates failure, handle the error
+	if resp.OperationResult != nil && resp.OperationResult.IsSuccess != nil && !*resp.OperationResult.IsSuccess {
+		var errorMessages []string
+		if resp.OperationResult.Errors != nil {
+			for _, kv := range *resp.OperationResult.Errors {
+				if kv.Value != nil {
+					errorMessages = append(errorMessages, fmt.Sprintf("%v", *kv.Value))
+				}
+			}
+		}
+		if len(errorMessages) > 0 {
+			return nil, fmt.Errorf("failed to add user entitlement: %s", strings.Join(errorMessages, "; "))
+		}
+		return nil, fmt.Errorf("failed to add user entitlement: unknown reason")
+	}
+
+	return resp.UserEntitlement, nil
+}
+
 func (c *AzureDevOpsClient) ListProjects(ctx context.Context, nextContinuationToken string) ([]core.TeamProjectReference, string, error) {
 	l := ctxzap.Extract(ctx)
 
@@ -112,7 +140,7 @@ func (c *AzureDevOpsClient) ListProjects(ctx context.Context, nextContinuationTo
 func (c *AzureDevOpsClient) ListTeams(ctx context.Context) ([]core.WebApiTeam, error) {
 	l := ctxzap.Extract(ctx)
 
-	//Teams client query is not supporting pagination
+	// Teams client query is not supporting pagination
 	teams, err := c.coreClient.GetAllTeams(ctx, core.GetAllTeamsArgs{})
 	if err != nil {
 		l.Error(fmt.Sprintf("Error getting resources: %s", err))
@@ -169,7 +197,7 @@ func (c *AzureDevOpsClient) ListOnlyGroups(ctx context.Context, nextContinuation
 		return nil, "", err
 	}
 
-	teamsMap, err := c.ListTeamIds(ctx)
+	teamsMap, err := c.ListTeamIDs(ctx)
 	if err != nil {
 		return nil, "", err
 	}
@@ -184,7 +212,7 @@ func (c *AzureDevOpsClient) ListOnlyGroups(ctx context.Context, nextContinuation
 	return filteredGroups, nextToken, nil
 }
 
-func (c *AzureDevOpsClient) ListTeamIds(ctx context.Context) (map[string]bool, error) {
+func (c *AzureDevOpsClient) ListTeamIDs(ctx context.Context) (map[string]bool, error) {
 	l := ctxzap.Extract(ctx)
 
 	teamsMap := make(map[string]bool)
@@ -201,14 +229,14 @@ func (c *AzureDevOpsClient) ListTeamIds(ctx context.Context) (map[string]bool, e
 	return teamsMap, nil
 }
 
-func (c *AzureDevOpsClient) ListIdentities(ctx context.Context, identityIds string, descriptors string) ([]identity.Identity, error) {
+func (c *AzureDevOpsClient) ListIdentities(ctx context.Context, identityIDs string, descriptors string) ([]identity.Identity, error) {
 	l := ctxzap.Extract(ctx)
 
 	readIdentitiesArgs := identity.ReadIdentitiesArgs{
 		QueryMembership: &identity.QueryMembershipValues.Expanded,
 	}
-	if identityIds != "" {
-		readIdentitiesArgs.IdentityIds = &identityIds
+	if identityIDs != "" {
+		readIdentitiesArgs.IdentityIds = &identityIDs
 	}
 	if descriptors != "" {
 		readIdentitiesArgs.Descriptors = &descriptors
@@ -227,6 +255,10 @@ func (c *AzureDevOpsClient) ListSecurityNamespaces(ctx context.Context) ([]secur
 	l := ctxzap.Extract(ctx)
 
 	namespaceUUID, err := uuid.Parse("52d39943-cb85-4d7f-8fa8-c6baac873819")
+	if err != nil {
+		return nil, err
+	}
+
 	namespaces, err := c.securityClient.QuerySecurityNamespaces(ctx, security.QuerySecurityNamespacesArgs{
 		SecurityNamespaceId: &namespaceUUID,
 	})
