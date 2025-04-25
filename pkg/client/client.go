@@ -254,11 +254,11 @@ func (c *AzureDevOpsClient) ListIdentities(ctx context.Context, identityIDs stri
 	return *identities, nil
 }
 
-func (c *AzureDevOpsClient) ListSecurityNamespaces(ctx context.Context) ([]security.SecurityNamespaceDescription, error) {
+func (c *AzureDevOpsClient) ListSecurityNamespaces(ctx context.Context, securityNamespaces []string) ([]security.SecurityNamespaceDescription, error) {
 	l := ctxzap.Extract(ctx)
 
 	var securityNamespacesArgs []security.QuerySecurityNamespacesArgs
-	for _, namespace := range c.securityNamespaces {
+	for _, namespace := range securityNamespaces {
 		namespaceUUID, err := uuid.Parse(namespace)
 		if err != nil {
 			l.Error(fmt.Sprintf("Error parsing UUID: %s", err))
@@ -267,9 +267,6 @@ func (c *AzureDevOpsClient) ListSecurityNamespaces(ctx context.Context) ([]secur
 		securityNamespacesArgs = append(securityNamespacesArgs, security.QuerySecurityNamespacesArgs{
 			SecurityNamespaceId: &namespaceUUID,
 		})
-	}
-	if len(securityNamespacesArgs) == 0 {
-		securityNamespacesArgs = append(securityNamespacesArgs, security.QuerySecurityNamespacesArgs{})
 	}
 
 	var finalNamespaces []security.SecurityNamespaceDescription
@@ -301,10 +298,13 @@ func (c *AzureDevOpsClient) ListActionsBySecurityNamespace(ctx context.Context, 
 	return nil, nil
 }
 
-func (c *AzureDevOpsClient) ListAccessControlsBySecurityNamespace(ctx context.Context, securityNamespaceId uuid.UUID) ([]security.AccessControlList, error) {
+func (c *AzureDevOpsClient) ListAccessControlsBySecurityNamespace(ctx context.Context, securityNamespaceId uuid.UUID, token string) ([]security.AccessControlList, error) {
 	l := ctxzap.Extract(ctx)
 
-	lists, err := c.securityClient.QueryAccessControlLists(ctx, security.QueryAccessControlListsArgs{SecurityNamespaceId: &securityNamespaceId})
+	lists, err := c.securityClient.QueryAccessControlLists(ctx, security.QueryAccessControlListsArgs{
+		SecurityNamespaceId: &securityNamespaceId,
+		Token:               &token,
+	})
 	if err != nil {
 		l.Error(fmt.Sprintf("Error getting resources: %s", err))
 		return nil, err

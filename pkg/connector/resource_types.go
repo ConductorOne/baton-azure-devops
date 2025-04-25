@@ -23,12 +23,6 @@ var teamResourceType = &v2.ResourceType{
 	Traits:      []v2.ResourceType_Trait{v2.ResourceType_TRAIT_GROUP},
 }
 
-var securityNamespaceResourceType = &v2.ResourceType{
-	Id:          "securityNamespace",
-	DisplayName: "SecurityNamespace",
-	Traits:      []v2.ResourceType_Trait{},
-}
-
 var groupResourceType = &v2.ResourceType{
 	Id:          "group",
 	DisplayName: "Group",
