@@ -23,6 +23,7 @@ func (d *Connector) ResourceSyncers(_ context.Context) []connectorbuilder.Resour
 		newProjectBuilder(d.client),
 		newTeamBuilder(d.client),
 		newGroupBuilder(d.client),
+		newRepositoryBuilder(d.client),
 	}
 }
 
@@ -71,10 +72,10 @@ func (d *Connector) Validate(_ context.Context) (annotations.Annotations, error)
 }
 
 // New returns a new instance of the connector.
-func New(ctx context.Context, personalAccessToken, organizationUrl string, syncGrantSources bool, securityNamespaces []string) (*Connector, error) {
+func New(ctx context.Context, personalAccessToken, organizationUrl string, syncGrantSources bool) (*Connector, error) {
 	l := ctxzap.Extract(ctx)
 
-	azureDevOpsClient, err := client.New(ctx, personalAccessToken, organizationUrl, syncGrantSources, securityNamespaces)
+	azureDevOpsClient, err := client.New(ctx, personalAccessToken, organizationUrl, syncGrantSources)
 	if err != nil {
 		l.Error("error creating Azure DevOps client", zap.Error(err))
 		return nil, err

@@ -196,6 +196,9 @@ func parseIntoProjectResource(project *core.TeamProjectReference) (*v2.Resource,
 		*project.Name,
 		projectResourceType,
 		project.Id.String(),
+		resource.WithAnnotation(
+			&v2.ChildResourceType{ResourceTypeId: repositoryResourceType.Id},
+		),
 	)
 	if err != nil {
 		return nil, err

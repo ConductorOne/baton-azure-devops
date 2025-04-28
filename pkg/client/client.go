@@ -12,6 +12,7 @@ import (
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/core"
+	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/git"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/graph"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/identity"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/security"
@@ -21,15 +22,15 @@ import (
 
 type AzureDevOpsClient struct {
 	SyncGrantSources      bool
-	securityNamespaces    []string
 	coreClient            core.Client
 	graphClient           graph.Client
 	securityClient        security.Client
 	identityClient        identity.Client
 	userEntitlementClient userentitlement.Client
+	gitClient             git.Client
 }
 
-func New(ctx context.Context, personalAccessToken, organization string, syncGrantSources bool, securityNamespaces []string) (*AzureDevOpsClient, error) {
+func New(ctx context.Context, personalAccessToken, organization string, syncGrantSources bool) (*AzureDevOpsClient, error) {
 	l := ctxzap.Extract(ctx)
 	connection := azuredevops.NewPatConnection(organization, personalAccessToken)
 
@@ -56,14 +57,19 @@ func New(ctx context.Context, personalAccessToken, organization string, syncGran
 		l.Info("error creating member entitlement management client", zap.Error(err))
 	}
 
+	gitClient, err := git.NewClient(ctx, connection)
+	if err != nil {
+		l.Info("error creating git client", zap.Error(err))
+	}
+
 	client := AzureDevOpsClient{
 		coreClient:            coreClient,
 		graphClient:           graphClient,
 		securityClient:        securityClient,
 		identityClient:        identityClient,
 		userEntitlementClient: userEntitlementClient,
+		gitClient:             gitClient,
 		SyncGrantSources:      syncGrantSources,
-		securityNamespaces:    securityNamespaces,
 	}
 
 	return &client, nil
@@ -352,4 +358,19 @@ func (c *AzureDevOpsClient) GetIdentity(ctx context.Context, identityID *string)
 	}
 
 	return "", nil
+}
+
+func (c *AzureDevOpsClient) ListRepositories(ctx context.Context, projectName string) ([]git.GitRepository, error) {
+	l := ctxzap.Extract(ctx)
+
+	repositories, err := c.gitClient.GetRepositories(ctx, git.GetRepositoriesArgs{Project: &projectName})
+	if err != nil {
+		l.Error(fmt.Sprintf("Error getting resources: %s;; for project %s", err, projectName))
+		return nil, err
+	}
+
+	if repositories != nil && len(*repositories) > 0 {
+		return *repositories, nil
+	}
+	return nil, nil
 }
