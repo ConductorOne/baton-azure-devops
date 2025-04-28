@@ -307,9 +307,12 @@ func (c *AzureDevOpsClient) ListActionsBySecurityNamespace(ctx context.Context, 
 func (c *AzureDevOpsClient) ListAccessControlsBySecurityNamespace(ctx context.Context, securityNamespaceId uuid.UUID, token string) ([]security.AccessControlList, error) {
 	l := ctxzap.Extract(ctx)
 
+	includeExtendedInfo := true
+
 	lists, err := c.securityClient.QueryAccessControlLists(ctx, security.QueryAccessControlListsArgs{
 		SecurityNamespaceId: &securityNamespaceId,
 		Token:               &token,
+		IncludeExtendedInfo: &includeExtendedInfo,
 	})
 	if err != nil {
 		l.Error(fmt.Sprintf("Error getting resources: %s", err))

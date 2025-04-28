@@ -115,8 +115,11 @@ func (o *repositoryBuilder) Grants(ctx context.Context, resource *v2.Resource, _
 						Shallow: true,
 					}))
 				}
-				// check allow for read and write using bit and bitmask properly
-				if *ace.Allow&readPermissionBit != bitMask {
+				effectiveAllow := *ace.Allow
+				if ace.ExtendedInfo.EffectiveAllow != nil {
+					effectiveAllow = *ace.ExtendedInfo.EffectiveAllow
+				}
+				if effectiveAllow&readPermissionBit != bitMask {
 					// add grant for read
 					grants = append(grants, grant.NewGrant(
 						resource,
@@ -126,7 +129,7 @@ func (o *repositoryBuilder) Grants(ctx context.Context, resource *v2.Resource, _
 					))
 				}
 
-				if *ace.Allow&writePermissionBit != bitMask {
+				if effectiveAllow&writePermissionBit != bitMask {
 					// add grant for write
 					grants = append(grants, grant.NewGrant(
 						resource,
