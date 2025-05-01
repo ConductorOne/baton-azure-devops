@@ -3,6 +3,8 @@ package connector
 import (
 	"context"
 	"io"
+	"sync"
+	"time"
 
 	"github.com/conductorone/baton-azure-devops/pkg/client"
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
@@ -12,18 +14,43 @@ import (
 	"go.uber.org/zap"
 )
 
+const TTL = 5 // in minutes
+
 type Connector struct {
-	client *client.AzureDevOpsClient
+	client         *client.AzureDevOpsClient
+	users          map[string]string
+	usersMutex     sync.Mutex
+	usersTimestamp time.Time
+}
+
+func (d *Connector) loadUsers(ctx context.Context) error {
+	d.usersMutex.Lock()
+	defer d.usersMutex.Unlock()
+
+	if d.users != nil && time.Since(d.usersTimestamp) < TTL*time.Minute {
+		return nil
+	}
+
+	l := ctxzap.Extract(ctx)
+	d.users = make(map[string]string)
+
+	usersMap, err := d.client.GetUsersMap(ctx)
+	if err != nil {
+		l.Error("Unable to make users map", zap.Error(err))
+	}
+	d.users = usersMap
+
+	return nil
 }
 
 // ResourceSyncers returns a ResourceSyncer for each resource type that should be synced from the upstream service.
 func (d *Connector) ResourceSyncers(_ context.Context) []connectorbuilder.ResourceSyncer {
 	return []connectorbuilder.ResourceSyncer{
 		newUserBuilder(d.client),
-		newProjectBuilder(d.client),
+		newProjectBuilder(d.client, d),
 		newTeamBuilder(d.client),
 		newGroupBuilder(d.client),
-		newRepositoryBuilder(d.client),
+		newRepositoryBuilder(d.client, d),
 	}
 }
 

@@ -2,15 +2,12 @@ package connector
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/conductorone/baton-azure-devops/pkg/client"
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/annotations"
 	"github.com/conductorone/baton-sdk/pkg/pagination"
-	"github.com/conductorone/baton-sdk/pkg/types/entitlement"
-	"github.com/conductorone/baton-sdk/pkg/types/grant"
 	"github.com/conductorone/baton-sdk/pkg/types/resource"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/core"
 )
@@ -42,6 +39,7 @@ var (
 type projectBuilder struct {
 	resourceType *v2.ResourceType
 	client       *client.AzureDevOpsClient
+	connector    *Connector
 }
 
 func (o *projectBuilder) ResourceType(_ context.Context) *v2.ResourceType {
@@ -69,39 +67,17 @@ func (o *projectBuilder) List(ctx context.Context, _ *v2.ResourceId, pToken *pag
 }
 
 func (o *projectBuilder) Entitlements(ctx context.Context, resource *v2.Resource, _ *pagination.Token) ([]*v2.Entitlement, string, annotations.Annotations, error) {
-	var entitlements []*v2.Entitlement
-
 	namespaces, err := o.client.ListSecurityNamespaces(ctx, securityNamespaces)
 	if err != nil {
 		return nil, "", nil, err
 	}
 
-	for _, namespace := range namespaces {
-		readPermissionName := getPermissionName(resource.DisplayName, *namespace.Name, "read")
-		readOptions := []entitlement.EntitlementOption{
-			entitlement.WithGrantableTo(userResourceType, groupResourceType, teamResourceType),
-			entitlement.WithDescription(fmt.Sprintf("Read permission in %s security namespace at %s project level", *namespace.Name, resource.DisplayName)),
-			entitlement.WithDisplayName(readPermissionName),
-		}
-
-		writePermissionName := getPermissionName(resource.DisplayName, *namespace.Name, "write")
-		writeOptions := []entitlement.EntitlementOption{
-			entitlement.WithGrantableTo(userResourceType, groupResourceType, teamResourceType),
-			entitlement.WithDescription(fmt.Sprintf("Write permission in %s security namespace at %s project level", *namespace.Name, resource.DisplayName)),
-			entitlement.WithDisplayName(writePermissionName),
-		}
-
-		entitlements = append(entitlements, entitlement.NewPermissionEntitlement(resource, readPermissionName, readOptions...))
-		entitlements = append(entitlements, entitlement.NewPermissionEntitlement(resource, writePermissionName, writeOptions...))
-	}
-	return entitlements, "", nil, nil
+	return getEntitlementsFromSecurityNamespaces(namespaces, resource), "", nil, nil
 }
 
 // Grants always returns an empty slice for users since they don't have any entitlements.
 func (o *projectBuilder) Grants(ctx context.Context, resource *v2.Resource, _ *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
-	var grants []*v2.Grant
-
-	userMap, err := o.client.GetUsersMap(ctx)
+	err := o.connector.loadUsers(ctx)
 	if err != nil {
 		return nil, "", nil, err
 	}
@@ -111,84 +87,11 @@ func (o *projectBuilder) Grants(ctx context.Context, resource *v2.Resource, _ *p
 		return nil, "", nil, err
 	}
 
-	for _, namespace := range namespaces {
-		readPermissionBit := *namespace.ReadPermission
-		writePermissionBit := *namespace.WritePermission
-		bitMask := *namespace.SystemBitMask
-
-		ACLs, err := o.client.ListAccessControlsBySecurityNamespace(ctx, *namespace.NamespaceId, parseTokenBySecurityNamespace(namespace.NamespaceId.String(), resource))
-		if err != nil {
-			return nil, "", nil, err
-		}
-		for _, acl := range ACLs {
-			for _, ace := range *acl.AcesDictionary {
-				grantResource, err := getIdentityResourceByDescriptor(o.client, ctx, *ace.Descriptor, userMap)
-				if err != nil {
-					continue
-				}
-				var basicGrantOptions []grant.GrantOption
-
-				if o.client.SyncGrantSources {
-					basicGrantOptions = append(basicGrantOptions, grant.WithAnnotation(&v2.GrantExpandable{
-						EntitlementIds: []string{
-							fmt.Sprintf("team:%s:member", grantResource.Id.Resource),
-							fmt.Sprintf("group:%s:member", grantResource.Id.Resource),
-							fmt.Sprintf("group:%s:admin", grantResource.Id.Resource),
-						},
-						Shallow: true,
-					}))
-				}
-				// check allow for read and write using bit and bitmask properly
-				effectiveAllow := *ace.Allow
-				if ace.ExtendedInfo.EffectiveAllow != nil {
-					effectiveAllow = *ace.ExtendedInfo.EffectiveAllow
-				}
-				if effectiveAllow&readPermissionBit != bitMask {
-					// add grant for read
-					grants = append(grants, grant.NewGrant(
-						resource,
-						getPermissionName(resource.DisplayName, *namespace.Name, "read"),
-						grantResource,
-						basicGrantOptions...,
-					))
-				}
-
-				if effectiveAllow&writePermissionBit != bitMask {
-					// add grant for write
-					grants = append(grants, grant.NewGrant(
-						resource,
-						getPermissionName(resource.DisplayName, *namespace.Name, "write"),
-						grantResource,
-						basicGrantOptions...,
-					))
-				}
-			}
-		}
+	grants, err := getGrantsFromSecurityNamespaces(ctx, o.client, o.connector.users, namespaces, resource)
+	if err != nil {
+		return nil, "", nil, err
 	}
-
 	return grants, "", nil, nil
-}
-
-func parseTokenBySecurityNamespace(securityNamespace string, projectResource *v2.Resource) string {
-	switch securityNamespace {
-	case projectSecurityNamespace:
-		return fmt.Sprintf("$PROJECT:vstfs:///Classification/TeamProject/%s", projectResource.Id.Resource)
-	case taggingSecurityNamespace:
-		return fmt.Sprintf("/%s", projectResource.Id.Resource)
-	case versionControlItemsSecurityNamespace:
-		return fmt.Sprintf("$/%s", projectResource.DisplayName)
-	case analyticsViewsSecurityNamespace:
-		return fmt.Sprintf("$/Shared/%s", projectResource.Id.Resource)
-	case buildSecurityNamespace:
-		return projectResource.Id.Resource
-	case gitRepositoriesSecurityNamespace:
-		return fmt.Sprintf("repoV2/%s", projectResource.Id.Resource)
-	case metaTaskSecurityNamespace:
-		return projectResource.Id.Resource
-	case releaseManagementSecurityNamespace:
-		return projectResource.Id.Resource
-	}
-	return ""
 }
 
 func getPermissionName(projectName, namespace, action string) string {
@@ -211,9 +114,10 @@ func parseIntoProjectResource(project *core.TeamProjectReference) (*v2.Resource,
 	return userResource, nil
 }
 
-func newProjectBuilder(c *client.AzureDevOpsClient) *projectBuilder {
+func newProjectBuilder(c *client.AzureDevOpsClient, d *Connector) *projectBuilder {
 	return &projectBuilder{
 		resourceType: projectResourceType,
 		client:       c,
+		connector:    d,
 	}
 }
