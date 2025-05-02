@@ -37,11 +37,14 @@ type EntitlementOperationResultBase struct {
 	Errors *[]azuredevops.KeyValuePair `json:"errors,omitempty"`
 	// Success status of the operation.
 	IsSuccess *bool `json:"isSuccess,omitempty"`
-	// Resulting entitlement property.  For specific implementations, see also: <seealso cref="T:Microsoft.VisualStudio.Services.MemberEntitlementManagement.WebApi.ServicePrincipalEntitlementOperationResult" /><seealso cref="T:Microsoft.VisualStudio.Services.MemberEntitlementManagement.WebApi.UserEntitlementOperationResult" />
+	// Resulting entitlement property. For specific implementations, see also:
+	//   T:Microsoft.VisualStudio.Services.MemberEntitlementManagement.WebApi.ServicePrincipalEntitlementOperationResult
+	//   T:Microsoft.VisualStudio.Services.MemberEntitlementManagement.WebApi.UserEntitlementOperationResult
+
 	Result interface{} `json:"result,omitempty"`
 }
 
-// An extension assigned to a user
+// An extension assigned to a user.
 type Extension struct {
 	// Assignment source for this extension. I.e. explicitly assigned or from a group rule.
 	AssignmentSource *licensing.AssignmentSource `json:"assignmentSource,omitempty"`
@@ -87,7 +90,7 @@ type Group struct {
 	GroupType *GroupType `json:"groupType,omitempty"`
 }
 
-// A group entity with additional properties including its license, extensions, and project membership
+// A group entity with additional properties including its license, extensions, and project membership.
 type GroupEntitlement struct {
 	// Deprecated:
 	ExtensionRules *[]Extension `json:"extensionRules,omitempty"`
@@ -135,7 +138,7 @@ type GroupOperationResult struct {
 	Result *GroupEntitlement `json:"result,omitempty"`
 }
 
-// Group option to add a user to
+// Group option to add a user to.
 type GroupOption struct {
 	// Access Level
 	AccessLevel *licensing.AccessLevel `json:"accessLevel,omitempty"`
@@ -143,7 +146,7 @@ type GroupOption struct {
 	Group *Group `json:"group,omitempty"`
 }
 
-// Used when adding users to a project. Each GroupType maps to a well-known group. The lowest GroupType should always be ProjectStakeholder
+// Used when adding users to a project. Each GroupType maps to a well-known group. The lowest GroupType should always be ProjectStakeholder.
 type GroupType string
 
 type groupTypeValuesType struct {
@@ -190,7 +193,7 @@ type LicenseSummaryData struct {
 	TotalAfterNextBillingDate *int `json:"totalAfterNextBillingDate,omitempty"`
 }
 
-// Deprecated: Use UserEntitlement instead
+// Deprecated: Use UserEntitlement instead.
 type MemberEntitlement struct {
 	// Member's access level denoted by a license.
 	AccessLevel *licensing.AccessLevel `json:"accessLevel,omitempty"`
@@ -212,7 +215,7 @@ type MemberEntitlement struct {
 	Member *graph.GraphMember `json:"member,omitempty"`
 }
 
-// An AAD member entity
+// An AAD member entity.
 type MemberEntitlement2 struct {
 	// Member's access level denoted by a license.
 	AccessLevel *licensing.AccessLevel `json:"accessLevel,omitempty"`
@@ -251,7 +254,10 @@ type MemberEntitlement2OperationResult struct {
 	Errors *[]azuredevops.KeyValuePair `json:"errors,omitempty"`
 	// Success status of the operation.
 	IsSuccess *bool `json:"isSuccess,omitempty"`
-	// Resulting entitlement property.  For specific implementations, see also: <seealso cref="T:Microsoft.VisualStudio.Services.MemberEntitlementManagement.WebApi.ServicePrincipalEntitlementOperationResult" /><seealso cref="T:Microsoft.VisualStudio.Services.MemberEntitlementManagement.WebApi.UserEntitlementOperationResult" />
+	// Resulting entitlement property. For specific implementations, see also:
+	//   T:Microsoft.VisualStudio.Services.MemberEntitlementManagement.WebApi.ServicePrincipalEntitlementOperationResult
+	//   T:Microsoft.VisualStudio.Services.MemberEntitlementManagement.WebApi.UserEntitlementOperationResult
+
 	Result interface{} `json:"result,omitempty"`
 	// Identifier of the Member being acted upon.
 	MemberId *uuid.UUID `json:"memberId,omitempty"`
@@ -335,7 +341,7 @@ type OperationResult struct {
 	Result *MemberEntitlement `json:"result,omitempty"`
 }
 
-// A page of users
+// A page of users.
 type PagedGraphMemberList struct {
 	Members *[]UserEntitlement `json:"members,omitempty"`
 	// This will be non-null if there is another page of data. There will never be more than one continuation token returned by a request.
@@ -372,7 +378,7 @@ var ProjectPermissionInheritedValues = projectPermissionInheritedValuesType{
 	Inherited:    "inherited",
 }
 
-// A reference to a project
+// A reference to a project.
 type ProjectRef struct {
 	// Project ID.
 	Id *uuid.UUID `json:"id,omitempty"`
@@ -419,7 +425,9 @@ type ServicePrincipalEntitlementOperationResult struct {
 	Errors *[]azuredevops.KeyValuePair `json:"errors,omitempty"`
 	// Success status of the operation.
 	IsSuccess *bool `json:"isSuccess,omitempty"`
-	// Resulting entitlement property.  For specific implementations, see also: <seealso cref="T:Microsoft.VisualStudio.Services.MemberEntitlementManagement.WebApi.ServicePrincipalEntitlementOperationResult" /><seealso cref="T:Microsoft.VisualStudio.Services.MemberEntitlementManagement.WebApi.UserEntitlementOperationResult" />
+	// Resulting entitlement property. For specific implementations, see also:
+	//   T:Microsoft.VisualStudio.Services.MemberEntitlementManagement.WebApi.ServicePrincipalEntitlementOperationResult
+	//   T:Microsoft.VisualStudio.Services.MemberEntitlementManagement.WebApi.UserEntitlementOperationResult
 	Result interface{} `json:"result,omitempty"`
 	// Identifier of the ServicePrincipal being acted upon.
 	ServicePrincipalId *uuid.UUID `json:"servicePrincipalId,omitempty"`
@@ -453,7 +461,7 @@ type SummaryData struct {
 	Total *int `json:"total,omitempty"`
 }
 
-// [Flags]
+// [Flags].
 type SummaryPropertyName string
 
 type summaryPropertyNameValuesType struct {
@@ -476,7 +484,7 @@ var SummaryPropertyNameValues = summaryPropertyNameValuesType{
 	All:                "all",
 }
 
-// A reference to a team
+// A reference to a team.
 type TeamRef struct {
 	// Team ID
 	Id *uuid.UUID `json:"id,omitempty"`
@@ -484,7 +492,7 @@ type TeamRef struct {
 	Name *string `json:"name,omitempty"`
 }
 
-// A user entity with additional properties including their license, extensions, and project membership
+// A user entity with additional properties including their license, extensions, and project membership.
 type UserEntitlement struct {
 	// Member's access level denoted by a license.
 	AccessLevel *licensing.AccessLevel `json:"accessLevel,omitempty"`
@@ -526,13 +534,15 @@ type UserEntitlementOperationResult struct {
 	Errors *[]azuredevops.KeyValuePair `json:"errors,omitempty"`
 	// Success status of the operation.
 	IsSuccess *bool `json:"isSuccess,omitempty"`
-	// Resulting entitlement property.  For specific implementations, see also: <seealso cref="T:Microsoft.VisualStudio.Services.MemberEntitlementManagement.WebApi.ServicePrincipalEntitlementOperationResult" /><seealso cref="T:Microsoft.VisualStudio.Services.MemberEntitlementManagement.WebApi.UserEntitlementOperationResult" />
+	// Resulting entitlement property. For specific implementations, see also:
+	//   T:Microsoft.VisualStudio.Services.MemberEntitlementManagement.WebApi.ServicePrincipalEntitlementOperationResult
+	//   T:Microsoft.VisualStudio.Services.MemberEntitlementManagement.WebApi.UserEntitlementOperationResult
 	Result interface{} `json:"result,omitempty"`
 	// Identifier of the Member being acted upon.
 	UserId *uuid.UUID `json:"userId,omitempty"`
 }
 
-// [Flags]
+// [Flags].
 type UserEntitlementProperty string
 
 type userEntitlementPropertyValuesType struct {
@@ -576,7 +586,7 @@ type UserEntitlementsResponseBase struct {
 	UserEntitlement *UserEntitlement `json:"userEntitlement,omitempty"`
 }
 
-// Summary of licenses and extensions assigned to users in the organization
+// Summary of licenses and extensions assigned to users in the organization.
 type UsersSummary struct {
 	// Available Access Levels
 	AvailableAccessLevels *[]licensing.AccessLevel `json:"availableAccessLevels,omitempty"`

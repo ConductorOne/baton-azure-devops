@@ -2,8 +2,10 @@ package client
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/conductorone/baton-azure-devops/pkg/client/userentitlement"
 	"github.com/google/uuid"
@@ -88,6 +90,34 @@ func (c *AzureDevOpsClient) ListUsers(ctx context.Context, nextContinuationToken
 	}
 
 	return *users.Members, nextPageToken, nil
+}
+
+func (c *AzureDevOpsClient) CreateUserAccount(ctx context.Context, ue *userentitlement.UserEntitlement) (*userentitlement.UserEntitlement, error) {
+	args := userentitlement.AddUserEntitlementArgs{
+		UserEntitlement: ue,
+	}
+	resp, err := c.userEntitlementClient.AddUserEntitlement(ctx, args)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add user entitlement: %w", err)
+	}
+	// If the operation result exists and indicates failure, handle the error
+	if resp.OperationResult != nil && resp.OperationResult.IsSuccess != nil && !*resp.OperationResult.IsSuccess {
+		var errorMessages []string
+		if resp.OperationResult.Errors != nil {
+			for _, kv := range *resp.OperationResult.Errors {
+				if kv.Value != nil {
+					errorMessages = append(errorMessages, fmt.Sprintf("%v", *kv.Value))
+				}
+			}
+		}
+		if len(errorMessages) > 0 {
+			err := errors.New(strings.Join(errorMessages, "; "))
+			return nil, fmt.Errorf("failed to add user entitlement: %w", err)
+		}
+		return nil, fmt.Errorf("failed to add user entitlement: unknown reason")
+	}
+
+	return resp.UserEntitlement, nil
 }
 
 func (c *AzureDevOpsClient) ListProjects(ctx context.Context, nextContinuationToken string) ([]core.TeamProjectReference, string, error) {

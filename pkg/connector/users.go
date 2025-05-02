@@ -2,14 +2,18 @@ package connector
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/conductorone/baton-azure-devops/pkg/client"
 	"github.com/conductorone/baton-azure-devops/pkg/client/userentitlement"
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/annotations"
+	"github.com/conductorone/baton-sdk/pkg/connectorbuilder"
 	"github.com/conductorone/baton-sdk/pkg/pagination"
 	"github.com/conductorone/baton-sdk/pkg/types/resource"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/accounts"
+	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/graph"
+	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/licensing"
 )
 
 type userBuilder struct {
@@ -41,6 +45,90 @@ func (o *userBuilder) List(ctx context.Context, _ *v2.ResourceId, pToken *pagina
 	}
 
 	return resources, nextPageToken, nil, nil
+}
+
+func (o *userBuilder) CreateAccountCapabilityDetails(ctx context.Context) (*v2.CredentialDetailsAccountProvisioning, annotations.Annotations, error) {
+	return &v2.CredentialDetailsAccountProvisioning{
+		SupportedCredentialOptions: []v2.CapabilityDetailCredentialOption{
+			v2.CapabilityDetailCredentialOption_CAPABILITY_DETAIL_CREDENTIAL_OPTION_NO_PASSWORD,
+		},
+		PreferredCredentialOption: v2.CapabilityDetailCredentialOption_CAPABILITY_DETAIL_CREDENTIAL_OPTION_NO_PASSWORD,
+	}, nil, nil
+}
+
+func (o *userBuilder) CreateAccount(
+	ctx context.Context,
+	accountInfo *v2.AccountInfo,
+	_ *v2.CredentialOptions) (
+	connectorbuilder.CreateAccountResponse,
+	[]*v2.PlaintextData,
+	annotations.Annotations,
+	error,
+) {
+	profile := accountInfo.GetProfile().AsMap()
+
+	principalNameRaw, ok := profile["principal_name"]
+	if !ok {
+		return nil, nil, nil, fmt.Errorf("missing 'principal_name' in account profile")
+	}
+	principalName := principalNameRaw.(string)
+
+	licenseTypeRaw, ok := profile["license_type"]
+	if !ok {
+		return nil, nil, nil, fmt.Errorf("missing 'license_type' in account profile")
+	}
+	licenseType := licenseTypeRaw.(string)
+
+	accountLicenseType, licensingSource, err := mapLicenseType(licenseType)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	// In azure devops the subjectKind is always user.
+	subjectKind := "user"
+	userEntitlement := &userentitlement.UserEntitlement{
+		AccessLevel: &licensing.AccessLevel{
+			LicensingSource:    licensingSource,
+			AccountLicenseType: accountLicenseType,
+		},
+		User: &graph.GraphUser{
+			PrincipalName: &principalName,
+			SubjectKind:   &subjectKind,
+		},
+	}
+
+	created, err := o.client.CreateUserAccount(ctx, userEntitlement)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	resourceC, err := parseIntoUserResource(created)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("failed to build user resource: %w", err)
+	}
+
+	return &v2.CreateAccountResponse_SuccessResult{
+		Resource: resourceC,
+	}, nil, nil, nil
+}
+
+// Function to validate and parse the license type.
+// Valid license types are:
+// - express
+// - stakeholder
+// - Visual Studio Subscriber
+// If the license type is not valid, it returns an error.
+func mapLicenseType(input string) (*licensing.AccountLicenseType, *licensing.LicensingSource, error) {
+	switch input {
+	case "express":
+		return &licensing.AccountLicenseTypeValues.Express, &licensing.LicensingSourceValues.Account, nil
+	case "stakeholder":
+		return &licensing.AccountLicenseTypeValues.Stakeholder, &licensing.LicensingSourceValues.Account, nil
+	case "Visual Studio Subscriber":
+		return &licensing.AccountLicenseTypeValues.Advanced, &licensing.LicensingSourceValues.Msdn, nil
+	default:
+		return nil, nil, fmt.Errorf("invalid license_type '%s'; must be one of: express, stakeholder, Visual Studio Subscriber", input)
+	}
 }
 
 // Entitlements always returns an empty slice for users.
