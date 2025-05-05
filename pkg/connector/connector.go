@@ -38,6 +38,30 @@ func (d *Connector) Metadata(_ context.Context) (*v2.ConnectorMetadata, error) {
 	return &v2.ConnectorMetadata{
 		DisplayName: "Azure Dev Ops Connector",
 		Description: "Connector to sync users, security namespaces, projects, teams and groups",
+		AccountCreationSchema: &v2.ConnectorAccountCreationSchema{
+			FieldMap: map[string]*v2.ConnectorAccountCreationSchema_Field{
+				"principal_name": {
+					DisplayName: "Principal Name",
+					Required:    true,
+					Description: "The Entra ID principal name of the user (e.g., their email).",
+					Field: &v2.ConnectorAccountCreationSchema_Field_StringField{
+						StringField: &v2.ConnectorAccountCreationSchema_StringField{},
+					},
+					Placeholder: "user@example.com",
+					Order:       1,
+				},
+				"license_type": {
+					DisplayName: "License Type",
+					Required:    true,
+					Description: "The type of license to assign to the user. Must be one of: express, stakeholder, Visual Studio Subscriber.",
+					Field: &v2.ConnectorAccountCreationSchema_Field_StringField{
+						StringField: &v2.ConnectorAccountCreationSchema_StringField{},
+					},
+					Placeholder: "express",
+					Order:       2,
+				},
+			},
+		},
 	}, nil
 }
 

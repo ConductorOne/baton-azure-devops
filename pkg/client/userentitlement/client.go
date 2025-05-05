@@ -93,15 +93,19 @@ func (client *ClientImpl) AddGroupEntitlement(ctx context.Context, args AddGroup
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	var responseValue GroupEntitlementOperationReference
 	err = client.Client.UnmarshalBody(resp, &responseValue)
 	return &responseValue, err
 }
 
-// Arguments for the AddGroupEntitlement function
+// Arguments for the AddGroupEntitlement function.
 type AddGroupEntitlementArgs struct {
-	// (required) GroupEntitlement object specifying License Rule, Extensions Rule for the group. Based on the rules the members of the group will be given licenses and extensions. The Group Entitlement can be used to add the group to another project level groups
+	// (required) GroupEntitlement object specifying the License and Extensions
+	// rules for the group. Based on these rules, the members of the group will
+	// be assigned licenses and extensions. The Group Entitlement can also be
+	// used to add the group to other project-level groups.
 	GroupEntitlement *GroupEntitlement
 	// (optional) RuleOption [ApplyGroupRule/TestApplyGroupRule] - specifies if the rules defined in group entitlement should be created and applied to it’s members (default option) or just be tested
 	RuleOption *licensingrule.RuleOption
@@ -113,22 +117,23 @@ func (client *ClientImpl) AddMemberToGroup(ctx context.Context, args AddMemberTo
 	if args.GroupId == nil {
 		return &azuredevops.ArgumentNilError{ArgumentName: "args.GroupId"}
 	}
-	routeValues["groupId"] = (*args.GroupId).String()
+	routeValues["groupId"] = args.GroupId.String()
 	if args.MemberId == nil {
 		return &azuredevops.ArgumentNilError{ArgumentName: "args.MemberId"}
 	}
-	routeValues["memberId"] = (*args.MemberId).String()
+	routeValues["memberId"] = args.GroupId.String()
 
 	locationId, _ := uuid.Parse("45a36e53-5286-4518-aa72-2d29f7acc5d8")
-	_, err := client.Client.Send(ctx, http.MethodPut, locationId, "7.1-preview.1", routeValues, nil, nil, "", "application/json", nil)
+	resp, err := client.Client.Send(ctx, http.MethodPut, locationId, "7.1-preview.1", routeValues, nil, nil, "", "application/json", nil)
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
 
 	return nil
 }
 
-// Arguments for the AddMemberToGroup function
+// Arguments for the AddMemberToGroup function.
 type AddMemberToGroupArgs struct {
 	// (required) Id of the Group.
 	GroupId *uuid.UUID
@@ -150,13 +155,14 @@ func (client *ClientImpl) AddServicePrincipalEntitlement(ctx context.Context, ar
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	var responseValue ServicePrincipalEntitlementsPostResponse
 	err = client.Client.UnmarshalBody(resp, &responseValue)
 	return &responseValue, err
 }
 
-// Arguments for the AddServicePrincipalEntitlement function
+// Arguments for the AddServicePrincipalEntitlement function.
 type AddServicePrincipalEntitlementArgs struct {
 	// (required) ServicePrincipalEntitlement object specifying License, Extensions and Project/Team groups the service principal should be added to.
 	ServicePrincipalEntitlement *ServicePrincipalEntitlement
@@ -176,13 +182,14 @@ func (client *ClientImpl) AddUserEntitlement(ctx context.Context, args AddUserEn
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	var responseValue UserEntitlementsPostResponse
 	err = client.Client.UnmarshalBody(resp, &responseValue)
 	return &responseValue, err
 }
 
-// Arguments for the AddUserEntitlement function
+// Arguments for the AddUserEntitlement function.
 type AddUserEntitlementArgs struct {
 	// (required) UserEntitlement object specifying License, Extensions and Project/Team groups the user should be added to.
 	UserEntitlement *UserEntitlement
@@ -194,7 +201,7 @@ func (client *ClientImpl) DeleteGroupEntitlement(ctx context.Context, args Delet
 	if args.GroupId == nil {
 		return nil, &azuredevops.ArgumentNilError{ArgumentName: "args.GroupId"}
 	}
-	routeValues["groupId"] = (*args.GroupId).String()
+	routeValues["groupId"] = args.GroupId.String()
 
 	queryParams := url.Values{}
 	if args.RuleOption != nil {
@@ -208,17 +215,23 @@ func (client *ClientImpl) DeleteGroupEntitlement(ctx context.Context, args Delet
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	var responseValue GroupEntitlementOperationReference
 	err = client.Client.UnmarshalBody(resp, &responseValue)
 	return &responseValue, err
 }
 
-// Arguments for the DeleteGroupEntitlement function
+// Arguments for the DeleteGroupEntitlement function.
 type DeleteGroupEntitlementArgs struct {
 	// (required) ID of the group to delete.
 	GroupId *uuid.UUID
-	// (optional) RuleOption [ApplyGroupRule/TestApplyGroupRule] - specifies if the rules defined in group entitlement should be deleted and the changes are applied to it’s members (default option) or just be tested
+	// (optional) RuleOption [ApplyGroupRule/TestApplyGroupRule] -
+	// Specifies whether the rules defined in the group entitlement
+	// should be applied to its members (default option) or just tested.
+	//
+	// - ApplyGroupRule: The changes are applied to the group's members.
+	// - TestApplyGroupRule: The rules are tested without applying changes.
 	RuleOption *licensingrule.RuleOption
 	// (optional) Optional parameter that specifies whether the group with the given ID should be removed from all other groups
 	RemoveGroupMembership *bool
@@ -230,18 +243,19 @@ func (client *ClientImpl) DeleteServicePrincipalEntitlement(ctx context.Context,
 	if args.ServicePrincipalId == nil {
 		return &azuredevops.ArgumentNilError{ArgumentName: "args.ServicePrincipalId"}
 	}
-	routeValues["servicePrincipalId"] = (*args.ServicePrincipalId).String()
+	routeValues["servicePrincipalId"] = args.ServicePrincipalId.String()
 
 	locationId, _ := uuid.Parse("1d491a66-190b-43ae-86b8-9c2688c55186")
-	_, err := client.Client.Send(ctx, http.MethodDelete, locationId, "7.1-preview.1", routeValues, nil, nil, "", "application/json", nil)
+	resp, err := client.Client.Send(ctx, http.MethodDelete, locationId, "7.1-preview.1", routeValues, nil, nil, "", "application/json", nil)
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
 
 	return nil
 }
 
-// Arguments for the DeleteServicePrincipalEntitlement function
+// Arguments for the DeleteServicePrincipalEntitlement function.
 type DeleteServicePrincipalEntitlementArgs struct {
 	// (required) ID of the service principal.
 	ServicePrincipalId *uuid.UUID
@@ -253,18 +267,19 @@ func (client *ClientImpl) DeleteUserEntitlement(ctx context.Context, args Delete
 	if args.UserId == nil {
 		return &azuredevops.ArgumentNilError{ArgumentName: "args.UserId"}
 	}
-	routeValues["userId"] = (*args.UserId).String()
+	routeValues["userId"] = args.UserId.String()
 
 	locationId, _ := uuid.Parse("8480c6eb-ce60-47e9-88df-eca3c801638b")
-	_, err := client.Client.Send(ctx, http.MethodDelete, locationId, "7.1-preview.3", routeValues, nil, nil, "", "application/json", nil)
+	resp, err := client.Client.Send(ctx, http.MethodDelete, locationId, "7.1-preview.3", routeValues, nil, nil, "", "application/json", nil)
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
 
 	return nil
 }
 
-// Arguments for the DeleteUserEntitlement function
+// Arguments for the DeleteUserEntitlement function.
 type DeleteUserEntitlementArgs struct {
 	// (required) ID of the user.
 	UserId *uuid.UUID
@@ -276,20 +291,21 @@ func (client *ClientImpl) GetGroupEntitlement(ctx context.Context, args GetGroup
 	if args.GroupId == nil {
 		return nil, &azuredevops.ArgumentNilError{ArgumentName: "args.GroupId"}
 	}
-	routeValues["groupId"] = (*args.GroupId).String()
+	routeValues["groupId"] = args.GroupId.String()
 
 	locationId, _ := uuid.Parse("2280bffa-58a2-49da-822e-0764a1bb44f7")
 	resp, err := client.Client.Send(ctx, http.MethodGet, locationId, "7.1-preview.1", routeValues, nil, nil, "", "application/json", nil)
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	var responseValue GroupEntitlement
 	err = client.Client.UnmarshalBody(resp, &responseValue)
 	return &responseValue, err
 }
 
-// Arguments for the GetGroupEntitlement function
+// Arguments for the GetGroupEntitlement function.
 type GetGroupEntitlementArgs struct {
 	// (required) ID of the group.
 	GroupId *uuid.UUID
@@ -302,13 +318,14 @@ func (client *ClientImpl) GetGroupEntitlements(ctx context.Context, args GetGrou
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	var responseValue []GroupEntitlement
 	err = client.Client.UnmarshalCollectionBody(resp, &responseValue)
 	return &responseValue, err
 }
 
-// Arguments for the GetGroupEntitlements function
+// Arguments for the GetGroupEntitlements function.
 type GetGroupEntitlementsArgs struct {
 }
 
@@ -318,7 +335,7 @@ func (client *ClientImpl) GetGroupMembers(ctx context.Context, args GetGroupMemb
 	if args.GroupId == nil {
 		return nil, &azuredevops.ArgumentNilError{ArgumentName: "args.GroupId"}
 	}
-	routeValues["groupId"] = (*args.GroupId).String()
+	routeValues["groupId"] = args.GroupId.String()
 
 	queryParams := url.Values{}
 	if args.MaxResults != nil {
@@ -332,13 +349,14 @@ func (client *ClientImpl) GetGroupMembers(ctx context.Context, args GetGroupMemb
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	var responseValue PagedGraphMemberList
 	err = client.Client.UnmarshalBody(resp, &responseValue)
 	return &responseValue, err
 }
 
-// Arguments for the GetGroupMembers function
+// Arguments for the GetGroupMembers function.
 type GetGroupMembersArgs struct {
 	// (required) Id of the Group.
 	GroupId *uuid.UUID
@@ -354,20 +372,21 @@ func (client *ClientImpl) GetServicePrincipalEntitlement(ctx context.Context, ar
 	if args.ServicePrincipalId == nil {
 		return nil, &azuredevops.ArgumentNilError{ArgumentName: "args.ServicePrincipalId"}
 	}
-	routeValues["servicePrincipalId"] = (*args.ServicePrincipalId).String()
+	routeValues["servicePrincipalId"] = args.ServicePrincipalId.String()
 
 	locationId, _ := uuid.Parse("1d491a66-190b-43ae-86b8-9c2688c55186")
 	resp, err := client.Client.Send(ctx, http.MethodGet, locationId, "7.1-preview.1", routeValues, nil, nil, "", "application/json", nil)
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	var responseValue ServicePrincipalEntitlement
 	err = client.Client.UnmarshalBody(resp, &responseValue)
 	return &responseValue, err
 }
 
-// Arguments for the GetServicePrincipalEntitlement function
+// Arguments for the GetServicePrincipalEntitlement function.
 type GetServicePrincipalEntitlementArgs struct {
 	// (required) ID of the service principal.
 	ServicePrincipalId *uuid.UUID
@@ -379,20 +398,21 @@ func (client *ClientImpl) GetUserEntitlement(ctx context.Context, args GetUserEn
 	if args.UserId == nil {
 		return nil, &azuredevops.ArgumentNilError{ArgumentName: "args.UserId"}
 	}
-	routeValues["userId"] = (*args.UserId).String()
+	routeValues["userId"] = args.UserId.String()
 
 	locationId, _ := uuid.Parse("8480c6eb-ce60-47e9-88df-eca3c801638b")
 	resp, err := client.Client.Send(ctx, http.MethodGet, locationId, "7.1-preview.3", routeValues, nil, nil, "", "application/json", nil)
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	var responseValue UserEntitlement
 	err = client.Client.UnmarshalBody(resp, &responseValue)
 	return &responseValue, err
 }
 
-// Arguments for the GetUserEntitlement function
+// Arguments for the GetUserEntitlement function.
 type GetUserEntitlementArgs struct {
 	// (required) ID of the user.
 	UserId *uuid.UUID
@@ -409,13 +429,14 @@ func (client *ClientImpl) GetUsersSummary(ctx context.Context, args GetUsersSumm
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	var responseValue UsersSummary
 	err = client.Client.UnmarshalBody(resp, &responseValue)
 	return &responseValue, err
 }
 
-// Arguments for the GetUsersSummary function
+// Arguments for the GetUsersSummary function.
 type GetUsersSummaryArgs struct {
 	// (optional) Comma (",") separated list of properties to select. Supported property names are {AccessLevels, Licenses, Projects, Groups}.
 	Select *string
@@ -427,22 +448,23 @@ func (client *ClientImpl) RemoveMemberFromGroup(ctx context.Context, args Remove
 	if args.GroupId == nil {
 		return &azuredevops.ArgumentNilError{ArgumentName: "args.GroupId"}
 	}
-	routeValues["groupId"] = (*args.GroupId).String()
+	routeValues["groupId"] = args.GroupId.String()
 	if args.MemberId == nil {
 		return &azuredevops.ArgumentNilError{ArgumentName: "args.MemberId"}
 	}
-	routeValues["memberId"] = (*args.MemberId).String()
+	routeValues["memberId"] = args.MemberId.String()
 
 	locationId, _ := uuid.Parse("45a36e53-5286-4518-aa72-2d29f7acc5d8")
-	_, err := client.Client.Send(ctx, http.MethodDelete, locationId, "7.1-preview.1", routeValues, nil, nil, "", "application/json", nil)
+	resp, err := client.Client.Send(ctx, http.MethodDelete, locationId, "7.1-preview.1", routeValues, nil, nil, "", "application/json", nil)
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
 
 	return nil
 }
 
-// Arguments for the RemoveMemberFromGroup function
+// Arguments for the RemoveMemberFromGroup function.
 type RemoveMemberFromGroupArgs struct {
 	// (required) Id of the group.
 	GroupId *uuid.UUID
@@ -450,7 +472,7 @@ type RemoveMemberFromGroupArgs struct {
 	MemberId *uuid.UUID
 }
 
-// [Preview API]
+// [Preview API].
 func (client *ClientImpl) SearchMemberEntitlements(ctx context.Context, args SearchMemberEntitlementsArgs) (*[]MemberEntitlement2, error) {
 	queryParams := url.Values{}
 	if args.ContinuationToken != nil {
@@ -470,13 +492,14 @@ func (client *ClientImpl) SearchMemberEntitlements(ctx context.Context, args Sea
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	var responseValue []MemberEntitlement2
 	err = client.Client.UnmarshalBody(resp, &responseValue)
 	return &responseValue, err
 }
 
-// Arguments for the SearchMemberEntitlements function
+// Arguments for the SearchMemberEntitlements function.
 type SearchMemberEntitlementsArgs struct {
 	// (optional)
 	ContinuationToken *string
@@ -508,21 +531,46 @@ func (client *ClientImpl) SearchUserEntitlements(ctx context.Context, args Searc
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	var responseValue PagedGraphMemberList
 	err = client.Client.UnmarshalBody(resp, &responseValue)
 	return &responseValue, err
 }
 
-// Arguments for the SearchUserEntitlements function
+// Arguments for the SearchUserEntitlements function.
 type SearchUserEntitlementsArgs struct {
 	// (optional) Continuation token for getting the next page of data set. If null is passed, gets the first page.
 	ContinuationToken *string
 	// (optional) Comma (",") separated list of properties to select in the result entitlements. names of the properties are - 'Projects, 'Extensions' and 'Grouprules'.
 	Select *UserEntitlementProperty
-	// (optional) Equality operators relating to searching user entitlements seperated by and clauses. Valid filters include: licenseId, licenseStatus, userType, and name. licenseId: filters based on license assignment using license names. i.e. licenseId eq 'Account-Stakeholder' or licenseId eq 'Account-Express'. licenseStatus: filters based on license status. currently only supports disabled. i.e. licenseStatus eq 'Disabled'. To get disabled basic licenses, you would pass (licenseId eq 'Account-Express' and licenseStatus eq 'Disabled') userType: filters off identity type. Suppored types are member or guest i.e. userType eq 'member'. name: filters on if the user's display name or email contians given input. i.e. get all users with "test" in email or displayname is "name eq 'test'". A valid query could be: (licenseId eq 'Account-Stakeholder' or (licenseId eq 'Account-Express' and licenseStatus eq 'Disabled')) and name eq 'test' and userType eq 'guest'.
+	// (optional) Equality operators relating to searching user entitlements,
+	// separated by 'and' clauses. Valid filters include: licenseId,
+	// licenseStatus, userType, and name.
+	//
+	// licenseId: filters based on license assignment using license names.
+	// Example: licenseId eq 'Account-Stakeholder' or licenseId eq 'Account-Express'.
+	//
+	// licenseStatus: filters based on license status. Currently, only supports
+	// 'disabled'. Example: licenseStatus eq 'Disabled'. To get disabled basic
+	// licenses, you would pass (licenseId eq 'Account-Express' and
+	// licenseStatus eq 'Disabled').
+	//
+	// userType: filters based on identity type. Supported types are 'member'
+	// or 'guest'. Example: userType eq 'member'.
+	//
+	// name: filters on the user's display name or email, containing the given input.
+	// Example: get all users with "test" in email or display name.
+	// Example query: name eq 'test'.
+	//
+	// A valid query could be:
+	// (licenseId eq 'Account-Stakeholder' or
+	//  (licenseId eq 'Account-Express' and licenseStatus eq 'Disabled')) and
+	//  name eq 'test' and userType eq 'guest'.
 	Filter *string
-	// (optional) PropertyName and Order (separated by a space ( )) to sort on (e.g. lastAccessed desc). Order defaults to ascending. valid properties to order by are dateCreated, lastAccessed, and name
+	// (optional) PropertyName and Order (separated by a space) to sort on
+	// (e.g. lastAccessed desc). Order defaults to ascending. Valid properties
+	// to order by are dateCreated, lastAccessed, and name.
 	OrderBy *string
 }
 
@@ -535,7 +583,7 @@ func (client *ClientImpl) UpdateGroupEntitlement(ctx context.Context, args Updat
 	if args.GroupId == nil {
 		return nil, &azuredevops.ArgumentNilError{ArgumentName: "args.GroupId"}
 	}
-	routeValues["groupId"] = (*args.GroupId).String()
+	routeValues["groupId"] = args.GroupId.String()
 
 	queryParams := url.Values{}
 	if args.RuleOption != nil {
@@ -550,19 +598,22 @@ func (client *ClientImpl) UpdateGroupEntitlement(ctx context.Context, args Updat
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	var responseValue GroupEntitlementOperationReference
 	err = client.Client.UnmarshalBody(resp, &responseValue)
 	return &responseValue, err
 }
 
-// Arguments for the UpdateGroupEntitlement function
+// Arguments for the UpdateGroupEntitlement function.
 type UpdateGroupEntitlementArgs struct {
 	// (required) JsonPatchDocument containing the operations to perform on the group.
 	Document *[]webapi.JsonPatchOperation
 	// (required) ID of the group.
 	GroupId *uuid.UUID
-	// (optional) RuleOption [ApplyGroupRule/TestApplyGroupRule] - specifies if the rules defined in group entitlement should be updated and the changes are applied to it’s members (default option) or just be tested
+	// (optional) RuleOption [ApplyGroupRule/TestApplyGroupRule] - specifies if the rules
+	// defined in group entitlement should be updated and the changes are applied to its
+	// members (default option) or just be tested.
 	RuleOption *licensingrule.RuleOption
 }
 
@@ -575,7 +626,7 @@ func (client *ClientImpl) UpdateServicePrincipalEntitlement(ctx context.Context,
 	if args.ServicePrincipalId == nil {
 		return nil, &azuredevops.ArgumentNilError{ArgumentName: "args.ServicePrincipalId"}
 	}
-	routeValues["servicePrincipalId"] = (*args.ServicePrincipalId).String()
+	routeValues["servicePrincipalId"] = args.ServicePrincipalId.String()
 
 	body, marshalErr := json.Marshal(*args.Document)
 	if marshalErr != nil {
@@ -586,13 +637,14 @@ func (client *ClientImpl) UpdateServicePrincipalEntitlement(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	var responseValue ServicePrincipalEntitlementsPatchResponse
 	err = client.Client.UnmarshalBody(resp, &responseValue)
 	return &responseValue, err
 }
 
-// Arguments for the UpdateServicePrincipalEntitlement function
+// Arguments for the UpdateServicePrincipalEntitlement function.
 type UpdateServicePrincipalEntitlementArgs struct {
 	// (required) JsonPatchDocument containing the operations to perform on the service principal.
 	Document *[]webapi.JsonPatchOperation
@@ -614,13 +666,14 @@ func (client *ClientImpl) UpdateServicePrincipalEntitlements(ctx context.Context
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	var responseValue ServicePrincipalEntitlementOperationReference
 	err = client.Client.UnmarshalBody(resp, &responseValue)
 	return &responseValue, err
 }
 
-// Arguments for the UpdateServicePrincipalEntitlements function
+// Arguments for the UpdateServicePrincipalEntitlements function.
 type UpdateServicePrincipalEntitlementsArgs struct {
 	// (required) JsonPatchDocument containing the operations to perform.
 	Document *[]webapi.JsonPatchOperation
@@ -635,7 +688,7 @@ func (client *ClientImpl) UpdateUserEntitlement(ctx context.Context, args Update
 	if args.UserId == nil {
 		return nil, &azuredevops.ArgumentNilError{ArgumentName: "args.UserId"}
 	}
-	routeValues["userId"] = (*args.UserId).String()
+	routeValues["userId"] = args.UserId.String()
 
 	body, marshalErr := json.Marshal(*args.Document)
 	if marshalErr != nil {
@@ -646,13 +699,14 @@ func (client *ClientImpl) UpdateUserEntitlement(ctx context.Context, args Update
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	var responseValue UserEntitlementsPatchResponse
 	err = client.Client.UnmarshalBody(resp, &responseValue)
 	return &responseValue, err
 }
 
-// Arguments for the UpdateUserEntitlement function
+// Arguments for the UpdateUserEntitlement function.
 type UpdateUserEntitlementArgs struct {
 	// (required) JsonPatchDocument containing the operations to perform on the user.
 	Document *[]webapi.JsonPatchOperation
@@ -678,13 +732,14 @@ func (client *ClientImpl) UpdateUserEntitlements(ctx context.Context, args Updat
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	var responseValue UserEntitlementOperationReference
 	err = client.Client.UnmarshalBody(resp, &responseValue)
 	return &responseValue, err
 }
 
-// Arguments for the UpdateUserEntitlements function
+// Arguments for the UpdateUserEntitlements function.
 type UpdateUserEntitlementsArgs struct {
 	// (required) JsonPatchDocument containing the operations to perform.
 	Document *[]webapi.JsonPatchOperation
