@@ -6,6 +6,11 @@
 
 Check out [Baton](https://github.com/conductorone/baton) to learn more the project in general.
 
+# Prerequisites
+Follow [Microsoft Learn Guide](https://learn.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate?view=azure-devops&tabs=Windows#create-a-pat) to create a Personal Access Token.
+Minimal permission scope needed includes:
+- Full access for now. Scope definition is still in progress.
+
 # Getting Started
 
 ## brew
@@ -38,6 +43,10 @@ baton resources
 
 `baton-azure-devops` will pull down information about the following resources:
 - Users
+- Teams
+- Groups
+- Projects
+- Repositories
 
 # Contributing, Support and Issues
 
@@ -69,7 +78,10 @@ Flags:
   -h, --help                         help for baton-azure-devops
       --log-format string            The output format for logs: json, console ($BATON_LOG_FORMAT) (default "json")
       --log-level string             The log level: debug, info, warn, error ($BATON_LOG_LEVEL) (default "info")
+      --organization-url string      required: The organization url to sync data `https://dev.azure.com/{Your_Organization}` ($BATON_ORGANIZATION_URL)
+      --personal-access-token string required: The Personal Access Token (PAT) that serves as an alternative password for authenticating into Azure DevOps ($BATON_PAT)
   -p, --provisioning                 If this connector supports provisioning, this must be set in order for provisioning actions to be enabled ($BATON_PROVISIONING)
+      --sync-grant-sources boolean   Sync grant sources. If this is not set, grant sources will not be included ($BATON_SYNC_GRANT_SOURCES)
       --ticketing                    This must be set to enable ticketing support ($BATON_TICKETING)
   -v, --version                      version for baton-azure-devops
 
