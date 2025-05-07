@@ -11,13 +11,15 @@ import (
 	"github.com/conductorone/baton-sdk/pkg/types/entitlement"
 	"github.com/conductorone/baton-sdk/pkg/types/grant"
 	"github.com/conductorone/baton-sdk/pkg/types/resource"
+	"github.com/google/uuid"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/core"
+	"go.uber.org/zap"
 )
 
 type teamBuilder struct {
 	resourceType *v2.ResourceType
-	client       *client.AzureDevOpsClient
+	client       client.AzureDevOpsClientInterface
 }
 
 var (
@@ -97,10 +99,85 @@ func (o *teamBuilder) Grants(ctx context.Context, resource *v2.Resource, _ *pagi
 		if member.IsTeamAdmin != nil && *member.IsTeamAdmin {
 			permissionName = adminPermission
 		}
-		membershipGrant := grant.NewGrant(resource, permissionName, finalResource.Id)
+		var grantOptions []grant.GrantOption
+		if permissionName == adminPermission {
+			grantOptions = append(grantOptions, grant.WithAnnotation(&v2.GrantImmutable{}))
+		}
+		membershipGrant := grant.NewGrant(resource, permissionName, finalResource.Id, grantOptions...)
 		grants = append(grants, membershipGrant)
 	}
 	return grants, "", nil, nil
+}
+
+func (o *teamBuilder) Grant(ctx context.Context, principal *v2.Resource, entitlementResource *v2.Entitlement) (annotations.Annotations, error) {
+	l := ctxzap.Extract(ctx)
+	grantType := entitlementResource.DisplayName
+	if grantType != memberPermission {
+		l.Debug("Grant type is not supported", zap.String("grantType", grantType))
+		return nil, fmt.Errorf("grant type %s not supported", grantType)
+	}
+	resourceId := entitlementResource.Resource.Id.Resource
+	parsedUUID, err := uuid.Parse(resourceId)
+	if err != nil {
+		return nil, err
+	}
+	teamDescriptor, err := o.client.GetDescriptor(ctx, parsedUUID)
+	if err != nil {
+		l.Debug("Error getting group descriptor", zap.Error(err))
+		return nil, err
+	}
+	memberDescriptor := principal.Id.Resource
+
+	if parsedUUID, err := uuid.Parse(principal.Id.Resource); err == nil {
+		memberDescriptor, err = o.client.GetDescriptor(ctx, parsedUUID)
+		if err != nil {
+			l.Debug("Error fetching principal descriptor", zap.Error(err))
+			return nil, err
+		}
+	}
+
+	_, err = o.client.CreateMembership(ctx, teamDescriptor, memberDescriptor)
+	if err != nil {
+		l.Debug("Error creating membership", zap.Error(err))
+		return nil, err
+	}
+
+	return nil, nil
+}
+
+func (o *teamBuilder) Revoke(ctx context.Context, grantResource *v2.Grant) (annotations.Annotations, error) {
+	l := ctxzap.Extract(ctx)
+	grantType := grantResource.Entitlement.DisplayName
+	if grantType != memberPermission {
+		l.Debug("Grant type is not supported", zap.String("grantType", grantType))
+		return nil, fmt.Errorf("grant type %s not supported", grantType)
+	}
+	principal := grantResource.Principal
+	principalDescriptor := principal.Id.Resource
+	if parsedUUID, err := uuid.Parse(principal.Id.Resource); err == nil {
+		principalDescriptor, err = o.client.GetDescriptor(ctx, parsedUUID)
+		if err != nil {
+			l.Debug("Error fetching principal descriptor", zap.Error(err))
+			return nil, err
+		}
+	}
+	resourceId := grantResource.Entitlement.Resource.Id.Resource
+	parsedUUID, err := uuid.Parse(resourceId)
+	if err != nil {
+		l.Debug("Error parsing team uuid", zap.Error(err))
+		return nil, err
+	}
+	teamDescriptor, err := o.client.GetDescriptor(ctx, parsedUUID)
+	if err != nil {
+		return nil, err
+	}
+	err = o.client.RevokeMembership(ctx, teamDescriptor, principalDescriptor)
+	if err != nil {
+		l.Debug("Error revoking team membership", zap.Error(err))
+		return nil, err
+	}
+
+	return nil, nil
 }
 
 func parseIntoTeamResource(ctx context.Context, team *core.WebApiTeam) (*v2.Resource, error) {

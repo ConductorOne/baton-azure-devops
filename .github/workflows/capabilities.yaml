@@ -24,7 +24,10 @@ jobs:
         run: go build -o connector ./cmd/baton-azure-devops
 
       - name: Run and save output
-        run: ./connector capabilities > baton_capabilities.json
+        env:
+          BATON_PAT: ${{ secrets.PAT }}
+          BATON_ORGANIZATION_URL: ${{ secrets.ORGANIZATION_URL }}
+        run: ./connector capabilities --personal-access-token=${{env.BATON_PAT}} --organization-url=${{ env.BATON_ORGANIZATION_URL }} > baton_capabilities.json
 
       - name: Commit changes
         uses: EndBug/add-and-commit@v9

@@ -116,7 +116,6 @@ func getGrantsFromSecurityNamespaces(
 	for _, namespace := range namespaces {
 		readPermissionBit := *namespace.ReadPermission
 		writePermissionBit := *namespace.WritePermission
-		bitMask := *namespace.SystemBitMask
 
 		ACLs, err := client.ListAccessControlsBySecurityNamespace(ctx, *namespace.NamespaceId, parseTokenBySecurityNamespace(namespace.NamespaceId.String(), resource))
 		if err != nil {
@@ -130,7 +129,7 @@ func getGrantsFromSecurityNamespaces(
 				}
 				var basicGrantOptions []grant.GrantOption
 
-				if client.SyncGrantSources {
+				if client.SyncGrantSources && grantResource.Id.ResourceType != userResourceType.Id {
 					basicGrantOptions = append(basicGrantOptions, grant.WithAnnotation(&v2.GrantExpandable{
 						EntitlementIds: []string{
 							fmt.Sprintf("team:%s:member", grantResource.Id.Resource),
@@ -144,7 +143,7 @@ func getGrantsFromSecurityNamespaces(
 				if ace.ExtendedInfo.EffectiveAllow != nil {
 					effectiveAllow = *ace.ExtendedInfo.EffectiveAllow
 				}
-				if effectiveAllow&readPermissionBit != bitMask {
+				if readPermissionBit != 0 && effectiveAllow&readPermissionBit == readPermissionBit {
 					// add grant for read
 					grants = append(grants, grant.NewGrant(
 						resource,
@@ -154,7 +153,7 @@ func getGrantsFromSecurityNamespaces(
 					))
 				}
 
-				if effectiveAllow&writePermissionBit != bitMask {
+				if writePermissionBit != 0 && effectiveAllow&writePermissionBit == writePermissionBit {
 					// add grant for write
 					grants = append(grants, grant.NewGrant(
 						resource,

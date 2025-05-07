@@ -377,3 +377,65 @@ func (c *AzureDevOpsClient) ListRepositories(ctx context.Context, projectName st
 	}
 	return nil, nil
 }
+
+// This function creates a membership, the container can be a team or a group.
+func (c *AzureDevOpsClient) CreateMembership(ctx context.Context, containerDescriptor string, memberDescriptor string) (*graph.GraphMembership, error) {
+	l := ctxzap.Extract(ctx)
+	addMembershipArgs := graph.AddMembershipArgs{
+		ContainerDescriptor: &containerDescriptor,
+		SubjectDescriptor:   &memberDescriptor,
+	}
+	newMembership, err := c.graphClient.AddMembership(ctx, addMembershipArgs)
+	if err != nil {
+		l.Error(fmt.Sprintf("Error creating membership: %s", err))
+		return nil, err
+	}
+
+	return newMembership, nil
+}
+
+// This function revokes a membership, the container can be a team or a group.
+func (c *AzureDevOpsClient) RevokeMembership(ctx context.Context, containerDescriptor string, memberDescriptor string) error {
+	l := ctxzap.Extract(ctx)
+	removeMembershipArgs := graph.RemoveMembershipArgs{
+		ContainerDescriptor: &containerDescriptor,
+		SubjectDescriptor:   &memberDescriptor,
+	}
+	err := c.graphClient.RemoveMembership(ctx, removeMembershipArgs)
+	if err != nil {
+		l.Error(fmt.Sprintf("Error removing membership: %s", err))
+		return err
+	}
+
+	return nil
+}
+
+func (c *AzureDevOpsClient) GetMembership(ctx context.Context, containerDescriptor string, memberDescriptor string) (*graph.GraphMembership, error) {
+	l := ctxzap.Extract(ctx)
+
+	membershipArgs := graph.GetMembershipArgs{
+		ContainerDescriptor: &containerDescriptor,
+		SubjectDescriptor:   &memberDescriptor,
+	}
+	membership, err := c.graphClient.GetMembership(ctx, membershipArgs)
+	if err != nil {
+		l.Error(fmt.Sprintf("Error getting membership: %s", err))
+		return nil, err
+	}
+
+	return membership, nil
+}
+
+func (c *AzureDevOpsClient) GetDescriptor(ctx context.Context, storageKey uuid.UUID) (string, error) {
+	l := ctxzap.Extract(ctx)
+
+	response, err := c.graphClient.GetDescriptor(ctx, graph.GetDescriptorArgs{
+		StorageKey: &storageKey,
+	})
+	if err != nil {
+		l.Error("Error getting descriptor", zap.Error(err))
+		return "", err
+	}
+
+	return *response.Value, nil
+}
