@@ -30,11 +30,42 @@ This connector supports:
       * Documentation to create a Personal Access Token [here](https://learn.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate?view=azure-devops&tabs=Windows#create-a-pat)
 
     * Does the credential need any specific scopes or permissions? If so, list them here.
-      * For now, we are using Full Access scope. Minimal scope definitions are in progress (BB-476)
+      * Yes. The PAT (Personal Access Token) requires the following scopes:
+        * vso.project 
+        * vso.profile
+        * vso.security    
+        * vso.code
+        * vso.graph
+        * vso.graph_manage
+        * vso.identity
+        * vso.memberentitlementmanagement
+        * vso.memberentitlementmanagement_write
 
     * If applicable: Is the list of scopes or permissions different to sync (read) versus provision (read-write)? If so, list the difference here.
-      * TODO BB-476: complete this section
+      * Indeed, it is. The list of required scopes to sync and to provision are different. Remember that the scopes are for the PAT, not the User that creates it. 
+        The detail of scope per type of operation and the affected process is:
+        * SYNC
+          Read User Data
+              scope: vso.memberentitlementmanagement
+          Read Projects, Teams and Members
+              scope: vso.project
+              scope: vso.profile
+              scope: vso.security
+          Read Repositories
+              scope: vso.code
+          List Groups
+              scope: vso.graph
+              scope: vso.identity
+      
+        * PROVISION
+          Provision Account
+              scope: vso.memberentitlementmanagement_write
+          Provision Team Memberships
+              scope: vso.graph_manage
+          Provision Groups Entitlements
+              scope: vso.graph
+              scope: vso.graph_manage
+
 
     * What level of access or permissions does the user need in order to create the credentials? (For example, must be a super administrator, must have access to the admin console, etc.)  
-      * The user needs to be `Project Collection Administrator` at organization level and `Project Administrator` at project level
-      * TODO BB-476: complete this section with tested info
+      * The user needs to be `Project Collection Administrator` at organization level and `Project Administrator` at project level.
