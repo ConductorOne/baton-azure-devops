@@ -5,7 +5,7 @@ go 1.23.4
 toolchain go1.23.8
 
 require (
-	github.com/conductorone/baton-sdk v0.2.99
+	github.com/conductorone/baton-sdk v0.3.3
 	github.com/ennyjfrick/ruleguard-logfatal v0.0.2
 	github.com/google/uuid v1.6.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
