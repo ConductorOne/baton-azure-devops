@@ -37,29 +37,34 @@ func New(ctx context.Context, personalAccessToken, organization string, syncGran
 	// Create a client to interact with the Core area
 	coreClient, err := core.NewClient(ctx, connection)
 	if err != nil {
-		l.Error("error creating core client", zap.Error(err))
+		l.Error("baton-azure-devops: error creating core client", zap.Error(err))
+		return nil, fmt.Errorf("error creating core client: %w", err)
 	}
 
 	graphClient, err := graph.NewClient(ctx, connection)
 	if err != nil {
-		l.Info("error creating graph client", zap.Error(err))
+		l.Error("baton-azure-devops: error creating graph client", zap.Error(err))
+		return nil, fmt.Errorf("error creating graph client: %w", err)
 	}
 
 	securityClient := security.NewClient(ctx, connection)
 
 	identityClient, err := identity.NewClient(ctx, connection)
 	if err != nil {
-		l.Info("error creating identity client", zap.Error(err))
+		l.Error("baton-azure-devops: error creating identity client", zap.Error(err))
+		return nil, fmt.Errorf("error creating identity client: %w", err)
 	}
 
 	userEntitlementClient, err := userentitlement.NewClient(ctx, connection)
 	if err != nil {
-		l.Info("error creating member entitlement management client", zap.Error(err))
+		l.Error("baton-azure-devops: error creating member entitlement management client", zap.Error(err))
+		return nil, fmt.Errorf("error creating member entitlement management client: %w", err)
 	}
 
 	gitClient, err := git.NewClient(ctx, connection)
 	if err != nil {
-		l.Info("error creating git client", zap.Error(err))
+		l.Error("baton-azure-devops: error creating git client", zap.Error(err))
+		return nil, fmt.Errorf("error creating git client: %w", err)
 	}
 
 	client := AzureDevOpsClient{
