@@ -345,7 +345,7 @@ type OperationResult struct {
 type PagedGraphMemberList struct {
 	Members *[]UserEntitlement `json:"members,omitempty"`
 	// This will be non-null if there is another page of data. There will never be more than one continuation token returned by a request.
-	ContinuationToken *[]string `json:"continuationToken,omitempty"`
+	ContinuationToken *string `json:"continuationToken,omitempty"`
 }
 
 // Relation between a project and the user's effective permissions in that project.
