@@ -95,9 +95,8 @@ func (c *AzureDevOpsClient) ListUsers(ctx context.Context, nextContinuationToken
 		return nil, "", err
 	}
 
-	if users.ContinuationToken != nil && len(*users.ContinuationToken) > 0 {
-		continuationToken := *users.ContinuationToken
-		nextPageToken = continuationToken[0]
+	if users.ContinuationToken != nil && *users.ContinuationToken != "" {
+		nextPageToken = *users.ContinuationToken
 	}
 
 	return *users.Members, nextPageToken, nil
