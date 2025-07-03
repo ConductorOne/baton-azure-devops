@@ -1,5 +1,5 @@
 {
-  "source": ["./dist/macos-arm64_darwin_arm64/baton-azure-devops"],
+  "source": ["./dist/macos-arm64_darwin_arm64_v8.0/baton-azure-devops"],
   "bundle_id": "com.conductorone.baton-azure-devops",
   "apple_id": {
     "username" : "justin.gallardo@conductorone.com"
