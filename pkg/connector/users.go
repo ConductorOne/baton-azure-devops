@@ -18,7 +18,7 @@ import (
 
 type userBuilder struct {
 	resourceType *v2.ResourceType
-	client       *client.AzureDevOpsClient
+	client       client.UserClientInterface
 }
 
 func (o *userBuilder) ResourceType(_ context.Context) *v2.ResourceType {
